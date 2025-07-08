@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "name": "famatic-api",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "env": {
+    "OPENROUTER_API_KEY": "@openrouter_api_key",
+    "SUPABASE_URL": "@supabase_url", 
+    "SUPABASE_SERVICE_KEY": "@supabase_service_key",
+    "CLOUDFLARE_R2_ENDPOINT": "@cloudflare_r2_endpoint",
+    "CLOUDFLARE_R2_ACCESS_KEY": "@cloudflare_r2_access_key",
+    "CLOUDFLARE_R2_SECRET_KEY": "@cloudflare_r2_secret_key",
+    "CLOUDFLARE_R2_BUCKET_NAME": "@cloudflare_r2_bucket_name",
+    "NEXTAUTH_SECRET": "@nextauth_secret"
+  },
+  "regions": ["iad1"]
+}

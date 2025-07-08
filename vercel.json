@@ -25,6 +25,5 @@
     "api/src/app/api/**/*.ts": {
       "maxDuration": 30
     }
-  },
-  "regions": ["iad1"]
+  }
 }
