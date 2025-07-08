@@ -8,7 +8,7 @@ import {
   View 
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from '@react-native-community/blur';
+import { BlurView } from './blur-view-fallback';
 import { 
   colors, 
   glassMorphism, 

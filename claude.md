@@ -1,8 +1,8 @@
-# Famatic.app- Product Requirements Document v2.0
+# Framatic.app - Product Requirements Document v2.0
 
 ## Executive Summary
 
-Famatic.app is a mobile-native SaaS application that enables users to create viral TikTok/Instagram slideshows with AI assistance in under 10 seconds. The app emphasizes ultra-fast creation, proven viral formats with authentic user photos, and premium bulk processing capabilities. Initially developed as a personal tool with scalability for public release.
+Framatic.app is a mobile-native SaaS application that enables users to create viral TikTok/Instagram slideshows with AI assistance in under 10 seconds. The app emphasizes ultra-fast creation, proven viral formats with authentic user photos, and premium bulk processing capabilities. Initially developed as a personal tool with scalability for public release.
 
 ## Product Vision
 

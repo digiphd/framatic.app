@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from '@react-native-community/blur';
+import { BlurView } from './blur-view-fallback';
 import { colors, glassMorphism, borderRadius, gradients } from '../../styles/theme';
-import { cn } from '../../lib/utils';
 
 interface GlassCardProps {
   children: React.ReactNode;

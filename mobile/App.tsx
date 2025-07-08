@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { HomeScreen } from './src/components/screens/HomeScreen';
+import { AssetLibraryScreen } from './src/components/screens/AssetLibraryScreen';
+import { MagicCreateScreen } from './src/components/screens/MagicCreateScreen';
+import { PreviewScreen } from './src/components/screens/PreviewScreen';
+
+type Screen = 'home' | 'library' | 'magic-create' | 'preview';
 
 export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<Screen>('home');
+  const [currentSlideshow, setCurrentSlideshow] = useState<any>(null);
+
   const handleMagicCreate = () => {
     console.log('Magic Create pressed! 🪄');
-    // TODO: Navigate to MagicCreateScreen
+    setCurrentScreen('magic-create');
   };
 
   const handleTemplateSelect = (template: string) => {
@@ -13,13 +21,54 @@ export default function App() {
     // TODO: Navigate to template customization or direct creation
   };
 
-  return (
-    <>
-      <HomeScreen
-        onMagicCreate={handleMagicCreate}
-        onTemplateSelect={handleTemplateSelect}
-        // Mock data for development
-        stats={{
+  const handleViewLibrary = () => {
+    console.log('Navigating to Photo Library');
+    setCurrentScreen('library');
+  };
+
+  const handleBack = () => {
+    setCurrentScreen('home');
+  };
+
+  const handlePreview = (slideshow: any) => {
+    setCurrentSlideshow(slideshow);
+    setCurrentScreen('preview');
+  };
+
+  const handleExport = (slideshow: any) => {
+    console.log('Exporting slideshow:', slideshow);
+    setCurrentScreen('home');
+  };
+
+  const handleEditMetadata = (slideshow: any) => {
+    console.log('Edit metadata:', slideshow);
+    // For now, just go back to home
+    setCurrentScreen('home');
+  };
+
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 'library':
+        return <AssetLibraryScreen onBack={handleBack} />;
+      case 'magic-create':
+        return <MagicCreateScreen onBack={handleBack} onPreview={handlePreview} />;
+      case 'preview':
+        return currentSlideshow ? (
+          <PreviewScreen 
+            slideshow={currentSlideshow} 
+            onBack={handleBack} 
+            onExport={handleExport} 
+            onEditMetadata={handleEditMetadata}
+          />
+        ) : null;
+      default:
+        return (
+          <HomeScreen
+            onMagicCreate={handleMagicCreate}
+            onTemplateSelect={handleTemplateSelect}
+            onViewLibrary={handleViewLibrary}
+            // Mock data for development
+            stats={{
           totalSlideshows: 12,
           viralHits: 3,
           totalViews: '2.1M',
@@ -50,9 +99,16 @@ export default function App() {
             viralScore: 78,
             createdAt: '3 days ago',
           },
-        ]}
-        // analysisProgress={75} // Uncomment to show analysis progress
-      />
+            ]}
+            // analysisProgress={75} // Uncomment to show analysis progress
+          />
+        );
+    }
+  };
+
+  return (
+    <>
+      {renderScreen()}
       <StatusBar style="light" />
     </>
   );

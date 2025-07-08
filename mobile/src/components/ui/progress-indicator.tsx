@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from '@react-native-community/blur';
+import { BlurView } from './blur-view-fallback';
 import { 
   colors, 
   borderRadius, 

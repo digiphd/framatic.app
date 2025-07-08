@@ -70,14 +70,23 @@ export function validateEnvironmentVariables(): { [key: string]: string } {
     'CLOUDFLARE_R2_BUCKET_NAME',
   ];
 
+  // In development, only warn about missing variables instead of throwing
   const missing = required.filter(key => !process.env[key]);
   
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const message = `Missing environment variables: ${missing.join(', ')}`;
+    
+    if (isDevelopment) {
+      console.warn(`⚠️ ${message}`);
+      console.warn('Some API features may not work properly.');
+    } else {
+      throw new Error(message);
+    }
   }
 
   return required.reduce((acc, key) => {
-    acc[key] = process.env[key]!;
+    acc[key] = process.env[key] || '';
     return acc;
   }, {} as { [key: string]: string });
 }

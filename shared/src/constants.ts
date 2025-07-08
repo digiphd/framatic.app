@@ -5,7 +5,7 @@ export const OPENROUTER_MODELS = {
   IMAGE_ANALYSIS: 'anthropic/claude-3.5-sonnet',
   SLIDESHOW_GENERATION: 'openai/gpt-4o',
   CAPTION_GENERATION: 'openai/gpt-4o',
-  HASHTAG_GENERATION: 'openai/gpt-3.5-turbo',
+  HASHTAG_GENERATION: 'openai/gpt-4o-mini',
 } as const;
 
 export const VIRAL_TEMPLATES = {

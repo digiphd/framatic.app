@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openRouter } from '../../../lib/openrouter/client';
+import { openRouter } from '../../../../lib/openrouter/client';
 
 export async function GET(request: NextRequest) {
   try {

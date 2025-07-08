@@ -1,4 +1,4 @@
-# Famatic.app
+# Framatic.app
 
 AI-powered viral TikTok/Instagram slideshow creator that transforms authentic photos into engaging content in under 10 seconds.
 

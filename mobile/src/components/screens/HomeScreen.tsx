@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
+  TouchableOpacity,
   ScrollView,
   SafeAreaView,
   StatusBar,
@@ -10,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   GlassCard,
-  MagicCreateButton,
+  MagicButton,
   TemplateCard,
   ProgressIndicator,
 } from '../ui';
@@ -41,6 +42,7 @@ interface RecentSlideshow {
 interface HomeScreenProps {
   onMagicCreate: () => void;
   onTemplateSelect: (template: string) => void;
+  onViewLibrary: () => void;
   stats?: DashboardStats;
   recentSlideshows?: RecentSlideshow[];
   analysisProgress?: number;
@@ -49,6 +51,7 @@ interface HomeScreenProps {
 export function HomeScreen({
   onMagicCreate,
   onTemplateSelect,
+  onViewLibrary,
   stats = {
     totalSlideshows: 12,
     viralHits: 3,
@@ -77,10 +80,23 @@ export function HomeScreen({
       >
         {/* Header */}
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
+          {/* App Logo/Name */}
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: typography['4xl'],
+              fontWeight: typography.bold,
+              marginBottom: spacing.sm,
+              textAlign: 'center',
+            }}
+          >
+            Framatic.app
+          </Text>
+          
           <Text
             style={{
               color: colors.foreground,
-              fontSize: typography['3xl'],
+              fontSize: typography['2xl'],
               fontWeight: typography.bold,
               marginBottom: spacing.xs,
             }}
@@ -182,9 +198,9 @@ export function HomeScreen({
             marginTop: spacing.xl,
           }}
         >
-          <MagicCreateButton onPress={onMagicCreate}>
+          <MagicButton onPress={onMagicCreate}>
             ✨ Create Magic
-          </MagicCreateButton>
+          </MagicButton>
           <Text
             style={{
               color: colors.muted,
@@ -197,6 +213,31 @@ export function HomeScreen({
           >
             Tap to create a viral slideshow in under 10 seconds
           </Text>
+          
+          {/* Photo Library Button */}
+          <TouchableOpacity
+            onPress={onViewLibrary}
+            style={{
+              backgroundColor: colors.glass,
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.xl,
+              borderRadius: borderRadius.lg,
+              marginTop: spacing.lg,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Text
+              style={{
+                color: colors.foreground,
+                fontSize: typography.base,
+                fontWeight: typography.medium,
+                textAlign: 'center',
+              }}
+            >
+              📱 View Photo Library
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Templates */}

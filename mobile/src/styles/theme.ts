@@ -20,6 +20,7 @@ export const colors = {
   glassBorder: 'rgba(255, 255, 255, 0.2)',
   glassHover: 'rgba(255, 255, 255, 0.15)',
   glassPressed: 'rgba(255, 255, 255, 0.05)',
+  border: 'rgba(255, 255, 255, 0.2)', // General border color
   
   // Status colors with glass variants
   success: '#10B981',
@@ -30,6 +31,9 @@ export const colors = {
   errorGlass: 'rgba(239, 68, 68, 0.1)',
   
   // Content colors
+  text: '#FFFFFF', // Primary text - bright white
+  textSecondary: 'rgba(255, 255, 255, 0.7)', // Secondary text - semi-transparent white
+  input: 'rgba(0, 0, 0, 0.4)', // Input background - dark for contrast
   muted: 'rgba(255, 255, 255, 0.6)',
   mutedForeground: 'rgba(255, 255, 255, 0.4)',
   accent: '#C084FC', // Lighter purple for accents
