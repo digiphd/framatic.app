@@ -1,0 +1,32 @@
+{
+  "name": "famatic-app",
+  "version": "1.0.0",
+  "description": "Famatic.app - AI-powered viral slideshow creator",
+  "private": true,
+  "workspaces": [
+    "api",
+    "mobile",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:mobile\"",
+    "dev:api": "cd api && npm run dev",
+    "dev:mobile": "cd mobile && npm run start",
+    "build": "npm run build:api && npm run build:mobile",
+    "build:api": "cd api && npm run build",
+    "build:mobile": "cd mobile && npm run build",
+    "type-check": "npm run type-check:api && npm run type-check:mobile",
+    "type-check:api": "cd api && npm run type-check",
+    "type-check:mobile": "cd mobile && npm run type-check",
+    "lint": "npm run lint:api && npm run lint:mobile",
+    "lint:api": "cd api && npm run lint",
+    "lint:mobile": "cd mobile && npm run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

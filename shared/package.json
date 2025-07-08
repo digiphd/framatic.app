@@ -1,0 +1,19 @@
+{
+  "name": "@famatic/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for Famatic.app",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.3"
+  }
+}
