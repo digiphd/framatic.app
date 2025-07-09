@@ -1,5 +1,6 @@
 import { OPENROUTER_MODELS } from '@famatic/shared';
 import { config, API_CONFIG } from '../config';
+import { openAIFallback, getFallbackModel } from '../openai-fallback';
 
 export interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
@@ -219,6 +220,61 @@ Include #fyp, #viral, and template-specific hashtags.
       }
       // Fallback hashtags
       return ['#fyp', '#viral', '#authentic', `#${template.replace(/_/g, '')}`];
+    }
+  }
+
+  // Generic text generation method with OpenAI fallback
+  async generateText(request: {
+    model: string;
+    messages: OpenRouterMessage[];
+    max_tokens?: number;
+    temperature?: number;
+  }): Promise<{ content: string; usage?: any; usedFallback?: boolean }> {
+    try {
+      // First try OpenRouter
+      const response = await this.chat({
+        model: request.model,
+        messages: request.messages,
+        max_tokens: request.max_tokens || 1000,
+        temperature: request.temperature || 0.7
+      });
+
+      return {
+        content: response.choices[0]?.message?.content || '',
+        usage: response.usage,
+        usedFallback: false
+      };
+    } catch (error) {
+      console.warn('OpenRouter failed, trying OpenAI fallback:', error);
+      
+      try {
+        // Convert OpenRouter messages to OpenAI format
+        const openAIMessages = request.messages.map(msg => ({
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : 
+                   Array.isArray(msg.content) ? msg.content
+                     .filter(item => item.type === 'text')
+                     .map(item => item.text)
+                     .join(' ') : ''
+        }));
+
+        const fallbackModel = getFallbackModel(request.model);
+        const fallbackResponse = await openAIFallback.generateText({
+          model: fallbackModel,
+          messages: openAIMessages,
+          max_tokens: request.max_tokens || 1000,
+          temperature: request.temperature || 0.7
+        });
+
+        return {
+          content: fallbackResponse.content,
+          usage: fallbackResponse.usage,
+          usedFallback: true
+        };
+      } catch (fallbackError) {
+        console.error('Both OpenRouter and OpenAI failed:', fallbackError);
+        throw new Error('AI service unavailable. Please try again later.');
+      }
     }
   }
 

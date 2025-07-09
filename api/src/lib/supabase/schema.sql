@@ -71,6 +71,25 @@ CREATE TABLE viral_templates (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User Context table for context-aware slideshow generation
+CREATE TABLE user_context (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  creator_type TEXT NOT NULL CHECK (creator_type IN ('personal', 'lifestyle', 'business', 'influencer', 'brand')),
+  business_category TEXT,
+  tone_of_voice TEXT NOT NULL CHECK (tone_of_voice IN ('casual', 'professional', 'funny', 'inspirational', 'educational', 'trendy')),
+  target_audience TEXT,
+  content_goals TEXT[] NOT NULL,
+  posting_frequency TEXT DEFAULT 'weekly' CHECK (posting_frequency IN ('daily', 'weekly', 'occasional')),
+  preferred_hashtags TEXT[] DEFAULT '{}',
+  brand_keywords TEXT[] DEFAULT '{}',
+  content_style_preferences JSONB, -- Visual style preferences
+  viral_content_examples TEXT[], -- Examples of viral content they like
+  context_learning_data JSONB, -- AI learning data for personalization
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX idx_asset_library_user_id ON asset_library(user_id);
 CREATE INDEX idx_asset_library_analysis_status ON asset_library(analysis_status);
@@ -81,6 +100,10 @@ CREATE INDEX idx_slideshows_user_id ON slideshows(user_id);
 CREATE INDEX idx_slideshows_created_at ON slideshows(created_at DESC);
 
 CREATE INDEX idx_viral_templates_active ON viral_templates(is_active) WHERE is_active = TRUE;
+
+CREATE INDEX idx_user_context_user_id ON user_context(user_id);
+CREATE INDEX idx_user_context_creator_type ON user_context(creator_type);
+CREATE INDEX idx_user_context_tone ON user_context(tone_of_voice);
 
 -- Updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -97,10 +120,17 @@ CREATE TRIGGER update_users_updated_at
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Apply updated_at trigger to user_context table
+CREATE TRIGGER update_user_context_updated_at 
+  BEFORE UPDATE ON user_context 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Row Level Security (RLS) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asset_library ENABLE ROW LEVEL SECURITY;
 ALTER TABLE slideshows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_context ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see/modify their own data
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
@@ -115,6 +145,11 @@ CREATE POLICY "Users can view own slideshows" ON slideshows FOR SELECT USING (au
 CREATE POLICY "Users can insert own slideshows" ON slideshows FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own slideshows" ON slideshows FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own slideshows" ON slideshows FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own context" ON user_context FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own context" ON user_context FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own context" ON user_context FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own context" ON user_context FOR DELETE USING (auth.uid() = user_id);
 
 -- Public read access for viral templates
 CREATE POLICY "Anyone can view active templates" ON viral_templates FOR SELECT USING (is_active = TRUE);

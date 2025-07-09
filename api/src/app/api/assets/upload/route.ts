@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToR2, validateImageFile } from '../../../lib/r2/client';
-import { db } from '../../../lib/supabase/client';
-import { API_CONFIG } from '../../../lib/config';
+import { uploadToR2, validateImageFile } from '@/lib/r2/client';
+import { db } from '@/lib/supabase/client';
+import { API_CONFIG } from '@/lib/config';
+import { imageProcessor } from '@/lib/image-processor';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,10 +28,10 @@ export async function POST(request: NextRequest) {
 
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const originalBuffer = Buffer.from(arrayBuffer);
 
     // Validate image file
-    const validation = validateImageFile(buffer, file.name);
+    const validation = validateImageFile(originalBuffer, file.name);
     if (!validation.isValid) {
       return NextResponse.json(
         { error: validation.error },
@@ -38,23 +39,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to R2
+    // Process image for TikTok optimization
+    const processedImage = await imageProcessor.processForTikTok(originalBuffer);
+    
+    // Generate processed filename
+    const fileExtension = processedImage.format;
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    const processedFileName = `${baseName}_processed.${fileExtension}`;
+
+    // Upload processed image to R2
     const uploadResult = await uploadToR2(
-      buffer,
-      file.name,
+      processedImage.buffer,
+      processedFileName,
       userId,
-      validation.contentType
+      `image/${processedImage.format}`
     );
 
-    // Save to database
+    // Save to database with processing info
     const asset = await db.createAsset({
       user_id: userId,
       r2_url: uploadResult.url,
       file_type: 'image',
       original_filename: file.name,
-      file_size: file.size,
+      file_size: processedImage.size,
       upload_method: 'single',
       analysis_status: 'pending'
+    });
+
+    // Trigger async analysis (fire and forget)
+    fetch(`${request.nextUrl.origin}/api/assets/process-queue`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId })
+    }).catch(error => {
+      console.error('Failed to trigger analysis queue:', error);
     });
 
     return NextResponse.json({
@@ -63,10 +83,16 @@ export async function POST(request: NextRequest) {
         id: asset.id,
         r2_url: uploadResult.url,
         original_filename: file.name,
-        file_size: file.size,
+        file_size: processedImage.size,
         analysis_status: 'pending'
       },
-      message: 'File uploaded successfully. Analysis queued.'
+      processing: {
+        original_size: file.size,
+        processed_size: processedImage.size,
+        compression_ratio: processedImage.compressionRatio,
+        dimensions: processedImage.dimensions
+      },
+      message: 'File uploaded and processed successfully. Analysis queued.'
     });
 
   } catch (error) {

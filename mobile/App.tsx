@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { HomeScreen } from './src/components/screens/HomeScreen';
 import { AssetLibraryScreen } from './src/components/screens/AssetLibraryScreen';
+import { MySlideshowsScreen } from './src/components/screens/MySlideshowsScreen';
 import { MagicCreateScreen } from './src/components/screens/MagicCreateScreen';
 import { PreviewScreen } from './src/components/screens/PreviewScreen';
+import { ToastContainer } from './src/components/ui/ToastContainer';
 
-type Screen = 'home' | 'library' | 'magic-create' | 'preview';
+type Screen = 'home' | 'library' | 'magic-create' | 'preview' | 'slideshows';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
@@ -23,6 +25,16 @@ export default function App() {
 
   const handleViewLibrary = () => {
     console.log('Navigating to Photo Library');
+    setCurrentScreen('library');
+  };
+
+  const handleViewSlideshows = () => {
+    console.log('Navigating to My Slideshows');
+    setCurrentScreen('slideshows');
+  };
+
+  const handleCreateNew = () => {
+    console.log('Create new slideshow');
     setCurrentScreen('library');
   };
 
@@ -49,7 +61,9 @@ export default function App() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'library':
-        return <AssetLibraryScreen onBack={handleBack} />;
+        return <AssetLibraryScreen onBack={handleBack} onNavigateToSlideshows={handleViewSlideshows} />;
+      case 'slideshows':
+        return <MySlideshowsScreen onBack={handleBack} onCreateNew={handleCreateNew} onEditSlideshow={handlePreview} />;
       case 'magic-create':
         return <MagicCreateScreen onBack={handleBack} onPreview={handlePreview} />;
       case 'preview':
@@ -67,6 +81,7 @@ export default function App() {
             onMagicCreate={handleMagicCreate}
             onTemplateSelect={handleTemplateSelect}
             onViewLibrary={handleViewLibrary}
+            onViewSlideshows={handleViewSlideshows}
             // Mock data for development
             stats={{
           totalSlideshows: 12,
@@ -109,6 +124,7 @@ export default function App() {
   return (
     <>
       {renderScreen()}
+      <ToastContainer />
       <StatusBar style="light" />
     </>
   );

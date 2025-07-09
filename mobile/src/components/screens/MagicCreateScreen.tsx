@@ -13,6 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../ui/glass-card';
 import { MagicButton } from '../ui/magic-button';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
+import { apiService } from '../../services/api';
+import { ErrorHandlers } from '../ui/ErrorAlert';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -21,7 +23,7 @@ interface MagicCreateScreenProps {
   onPreview: (slideshow: any) => void;
 }
 
-const templates = [
+const defaultTemplates = [
   {
     id: 'hidden_gems',
     name: 'Hidden Gems',
@@ -60,13 +62,19 @@ const templates = [
   },
 ];
 
+const MVP_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps) {
   const [step, setStep] = useState<'record-and-template' | 'generating'>('record-and-template');
   const [isRecording, setIsRecording] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(templates[0]);
+  const [templates, setTemplates] = useState(defaultTemplates);
+  const [selectedTemplate, setSelectedTemplate] = useState(defaultTemplates[0]);
   const [currentTemplateIndex, setCurrentTemplateIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [voiceInput, setVoiceInput] = useState('');
+  const [smartTemplatesLoading, setSmartTemplatesLoading] = useState(false);
+  const [usingSmartTemplates, setUsingSmartTemplates] = useState(false);
 
   // Animation values
   const recordScale = new Animated.Value(1);
@@ -131,10 +139,69 @@ export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps)
     Animated.spring(recordScale, { toValue: 1, useNativeDriver: true }).start();
     
     if (recordingDuration > 0.5) {
-      // Generate slideshow after brief recording - use setTimeout to avoid render cycle issues
+      // Mock voice input for demo - in real app, this would be processed from audio
+      const mockVoiceInput = 'Create a fun and engaging slideshow about my latest adventures';
+      setVoiceInput(mockVoiceInput);
+      
+      // Get smart template recommendations
       setTimeout(() => {
-        generateSlideshow();
+        getSmartTemplateRecommendations(mockVoiceInput);
       }, 500);
+    }
+  };
+
+  const getSmartTemplateRecommendations = async (voiceInput: string) => {
+    try {
+      setSmartTemplatesLoading(true);
+      
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.4.115:3001/api'}/templates/smart-select?userId=${MVP_USER_ID}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          voice_input: voiceInput,
+          user_prompt: 'Create engaging content that matches my style',
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get smart recommendations');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.recommendations) {
+        // Transform recommendations into template format
+        const smartTemplates = result.recommendations.map((rec: any) => ({
+          id: rec.template_id,
+          name: rec.template_name,
+          viralRate: Math.round(rec.viral_potential * 10),
+          description: rec.reasoning,
+          emoji: rec.emoji,
+          gradient: rec.gradient,
+          example: rec.hook_suggestion,
+          relevance_score: rec.relevance_score,
+          success_probability: rec.success_probability
+        }));
+        
+        setTemplates(smartTemplates);
+        setSelectedTemplate(smartTemplates[0]);
+        setCurrentTemplateIndex(0);
+        setUsingSmartTemplates(true);
+        
+        console.log('Smart templates loaded:', smartTemplates);
+      } else {
+        console.log('Using default templates');
+        generateSlideshow();
+      }
+    } catch (error) {
+      console.error('Smart template error:', error);
+      ErrorHandlers.smartTemplates(error, () => getSmartTemplateRecommendations(voiceInput));
+      // Fallback to default behavior
+      generateSlideshow();
+    } finally {
+      setSmartTemplatesLoading(false);
     }
   };
 
@@ -434,8 +501,31 @@ export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps)
             textAlign: 'center',
             marginBottom: spacing.lg,
           }}>
-            Choose Your Vibe
+            {smartTemplatesLoading ? 'Finding Perfect Match...' : 
+             usingSmartTemplates ? 'AI-Recommended Templates' : 'Choose Your Vibe'}
           </Text>
+          
+          {smartTemplatesLoading && (
+            <Text style={{
+              color: colors.textSecondary,
+              fontSize: 16,
+              textAlign: 'center',
+              marginBottom: spacing.lg,
+            }}>
+              Analyzing your style and goals...
+            </Text>
+          )}
+          
+          {usingSmartTemplates && !smartTemplatesLoading && (
+            <Text style={{
+              color: colors.success,
+              fontSize: 16,
+              textAlign: 'center',
+              marginBottom: spacing.lg,
+            }}>
+              ✨ Personalized recommendations based on your input
+            </Text>
+          )}
 
           {/* Template Swiper - Fixed positioning */}
           <View style={{ flex: 1, justifyContent: 'space-between' }}>
@@ -476,6 +566,11 @@ export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps)
                       fontWeight: 'bold',
                     }}>
                       {selectedTemplate.viralRate}% viral rate
+                      {usingSmartTemplates && selectedTemplate.relevance_score && (
+                        <Text style={{ fontSize: 12, opacity: 0.8 }}>
+                          {' '}• {(selectedTemplate.relevance_score * 100).toFixed(0)}% match
+                        </Text>
+                      )}
                     </Text>
                   </View>
 

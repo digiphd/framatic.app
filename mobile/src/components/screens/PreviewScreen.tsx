@@ -20,6 +20,7 @@ import { MagicButton } from '../ui/magic-button';
 import { DraggableText } from '../ui/draggable-text';
 import { TikTokTextEditor } from '../ui/tiktok-text-editor';
 import { TextEditOverlay } from '../ui/text-edit-overlay';
+import { R2Image } from '../ui/R2Image';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -61,6 +62,8 @@ interface PreviewScreenProps {
 }
 
 export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: PreviewScreenProps) {
+  console.log('PreviewScreen received slideshow:', slideshow);
+  
   const [editingSlideshow, setEditingSlideshow] = useState<Slideshow>(slideshow);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isEditMode, setIsEditMode] = useState(true); // Start in edit mode
@@ -151,12 +154,13 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
   });
 
   const currentSlide = editingSlideshow.slides[currentSlideIndex];
+  console.log('Current slide:', currentSlide);
 
   const addNewSlide = () => {
     const newSlide: Slide = {
       id: `slide-${Date.now()}`,
-      imageUrl: `https://picsum.photos/400/600?random=${Date.now()}`,
-      text: '',
+      imageUrl: '', // Empty for now - user will need to select an image
+      text: 'Tap to add text',
       textStyle: {
         color: colors.text,
         fontWeight: 'bold',
@@ -260,8 +264,8 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
       }}
       onLongPress={() => deleteSlide(item.id)}
     >
-      <Image
-        source={{ uri: item.imageUrl }}
+      <R2Image
+        r2Url={item.imageUrl}
         style={{
           width: 60,
           height: 80,
@@ -378,8 +382,8 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
           {...panResponder.panHandlers}
         >
           {/* Background Image */}
-          <Image
-            source={{ uri: currentSlide.imageUrl }}
+          <R2Image
+            r2Url={currentSlide.imageUrl}
             style={{
               width: '100%',
               height: '100%',

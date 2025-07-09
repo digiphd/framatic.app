@@ -43,6 +43,7 @@ interface HomeScreenProps {
   onMagicCreate: () => void;
   onTemplateSelect: (template: string) => void;
   onViewLibrary: () => void;
+  onViewSlideshows?: () => void;
   stats?: DashboardStats;
   recentSlideshows?: RecentSlideshow[];
   analysisProgress?: number;
@@ -52,6 +53,7 @@ export function HomeScreen({
   onMagicCreate,
   onTemplateSelect,
   onViewLibrary,
+  onViewSlideshows,
   stats = {
     totalSlideshows: 12,
     viralHits: 3,
@@ -214,30 +216,65 @@ export function HomeScreen({
             Tap to create a viral slideshow in under 10 seconds
           </Text>
           
-          {/* Photo Library Button */}
-          <TouchableOpacity
-            onPress={onViewLibrary}
-            style={{
-              backgroundColor: colors.glass,
-              paddingVertical: spacing.md,
-              paddingHorizontal: spacing.xl,
-              borderRadius: borderRadius.lg,
-              marginTop: spacing.lg,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text
+          {/* Action Buttons */}
+          <View style={{ 
+            flexDirection: 'row', 
+            gap: spacing.md, 
+            marginTop: spacing.lg,
+            width: '100%'
+          }}>
+            {/* Photo Library Button */}
+            <TouchableOpacity
+              onPress={onViewLibrary}
               style={{
-                color: colors.foreground,
-                fontSize: typography.base,
-                fontWeight: typography.medium,
-                textAlign: 'center',
+                flex: 1,
+                backgroundColor: colors.glass,
+                paddingVertical: spacing.md,
+                paddingHorizontal: spacing.lg,
+                borderRadius: borderRadius.lg,
+                borderWidth: 1,
+                borderColor: colors.border,
               }}
             >
-              📱 View Photo Library
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{
+                  color: colors.foreground,
+                  fontSize: typography.base,
+                  fontWeight: typography.medium,
+                  textAlign: 'center',
+                }}
+              >
+                📱 Photo Library
+              </Text>
+            </TouchableOpacity>
+
+            {/* My Slideshows Button */}
+            {onViewSlideshows && (
+              <TouchableOpacity
+                onPress={onViewSlideshows}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.glass,
+                  paddingVertical: spacing.md,
+                  paddingHorizontal: spacing.lg,
+                  borderRadius: borderRadius.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.foreground,
+                    fontSize: typography.base,
+                    fontWeight: typography.medium,
+                    textAlign: 'center',
+                  }}
+                >
+                  🎬 My Slideshows
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Quick Templates */}

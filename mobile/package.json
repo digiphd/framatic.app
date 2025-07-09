@@ -13,6 +13,7 @@
     "@react-native-community/blur": "^4.4.1",
     "@react-navigation/bottom-tabs": "^7.4.2",
     "@react-navigation/native": "^7.1.14",
+    "@supabase/supabase-js": "^2.50.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "expo": "~53.0.17",

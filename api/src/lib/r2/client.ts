@@ -93,16 +93,34 @@ export async function deleteFromR2(key: string): Promise<void> {
 // Extract key from R2 URL
 export function extractKeyFromUrl(r2Url: string): string {
   const url = new URL(r2Url);
-  const pathParts = url.pathname.split('/');
+  let pathParts = url.pathname.split('/').filter(Boolean); // Remove empty parts
   
-  // Remove the bucket name from the path
+  console.log('URL pathname:', url.pathname);
+  console.log('Path parts:', pathParts);
+  console.log('Looking for bucket:', R2_BUCKET);
+  
+  // Check if the URL includes the bucket name in the path
+  // Format: https://endpoint.com/bucket-name/key/path
   const bucketIndex = pathParts.indexOf(R2_BUCKET);
   if (bucketIndex !== -1) {
-    return pathParts.slice(bucketIndex + 1).join('/');
+    // Remove everything up to and including the bucket name
+    const key = pathParts.slice(bucketIndex + 1).join('/');
+    console.log('Found bucket at index', bucketIndex, 'extracted key:', key);
+    return key;
   }
   
-  // Fallback: assume the path is the key
-  return pathParts.slice(1).join('/');
+  // Check if the first part is the bucket name
+  if (pathParts.length > 0 && pathParts[0] === R2_BUCKET) {
+    const key = pathParts.slice(1).join('/');
+    console.log('Bucket at start, extracted key:', key);
+    return key;
+  }
+  
+  // If no bucket found in path, assume entire path is the key
+  // This handles cases where bucket name is in subdomain
+  const key = pathParts.join('/');
+  console.log('No bucket in path, using full path as key:', key);
+  return key;
 }
 
 // Validate file type for uploads

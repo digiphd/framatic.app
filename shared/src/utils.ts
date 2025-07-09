@@ -62,6 +62,7 @@ export function selectBestAssetsForTemplate(
 export function validateEnvironmentVariables(): { [key: string]: string } {
   const required = [
     'OPENROUTER_API_KEY',
+    'OPENAI_API_KEY',
     'SUPABASE_URL',
     'SUPABASE_SERVICE_KEY',
     'CLOUDFLARE_R2_ENDPOINT',
