@@ -222,7 +222,7 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
               imageUrl: r2Url, // Use actual R2 URL
               text: slide.text,
               textStyle: slide.style,
-              textPosition: { x: 0.5, y: 0.8 }, // Default position
+              textPosition: { x: 0.5, y: 0.25 }, // Default position
               textScale: 1,
               textRotation: 0,
             };
@@ -313,7 +313,7 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
         key={slideshow.id}
         style={{
           width: tileSize,
-          height: tileSize * 1.6, // TikTok aspect ratio
+          height: tileSize * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
           marginBottom: spacing.md,
         }}
         activeOpacity={0.8}

@@ -60,6 +60,39 @@ export async function uploadToR2(
   }
 }
 
+// Upload buffer to R2 with custom key (for rendered images)
+export async function uploadBuffer(
+  buffer: Buffer,
+  key: string,
+  contentType = 'image/jpeg'
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+    Metadata: {
+      'generated': 'true',
+      'upload-timestamp': Date.now().toString(),
+    },
+  });
+
+  try {
+    await r2Client.send(command);
+    
+    return {
+      success: true,
+      url: `${config.CLOUDFLARE_R2_ENDPOINT}/${R2_BUCKET}/${key}`,
+    };
+  } catch (error) {
+    console.error('R2 buffer upload error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
 // Generate presigned URL for secure access
 export async function getPresignedUrl(key: string, expiresIn = 3600): Promise<string> {
   const command = new GetObjectCommand({

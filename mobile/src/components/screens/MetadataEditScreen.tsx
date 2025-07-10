@@ -1,17 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   TextInput,
   SafeAreaView,
   StatusBar,
+  Share,
+  Alert,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { GlassCard } from '../ui/glass-card';
-import { MagicButton } from '../ui/magic-button';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
+import { exportService } from '../../services/export';
+import { SlideRenderer, SlideRendererRef } from '../ui/SlideRenderer';
+import { SkiaSlideRenderer, SkiaSlideRendererRef } from '../ui/SkiaSlideRenderer';
+import { ConsistencyDebugger } from '../debug/ConsistencyDebugger';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface Slideshow {
   id: string;
@@ -21,7 +28,7 @@ interface Slideshow {
   viralHook: string;
   caption: string;
   hashtags: string[];
-  estimatedViralScore: number;
+  viralScore: number; // Changed from estimatedViralScore to match data
 }
 
 interface MetadataEditScreenProps {
@@ -34,359 +41,594 @@ interface MetadataEditScreenProps {
 export function MetadataEditScreen({ slideshow, onSave, onBack, onExport }: MetadataEditScreenProps) {
   const [editingSlideshow, setEditingSlideshow] = useState<Slideshow>(slideshow);
   const [isEditingCaption, setIsEditingCaption] = useState(false);
-  const [isEditingHook, setIsEditingHook] = useState(false);
+  const [showHashtagInput, setShowHashtagInput] = useState(false);
+  const [newHashtag, setNewHashtag] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [currentExportSlide, setCurrentExportSlide] = useState<number | null>(null);
+  const [useSkiaRenderer, setUseSkiaRenderer] = useState(true); // Enable Skia for pixel-perfect consistency
+  const [showDebugger, setShowDebugger] = useState(false);
+  const slideRenderersRef = useRef<{ [key: string]: SlideRendererRef }>({});
+  const skiaSlideRenderersRef = useRef<{ [key: string]: SkiaSlideRendererRef }>({});
+  const visibleSlideRendererRef = useRef<SlideRendererRef | null>(null);
+  const visibleSkiaSlideRendererRef = useRef<SkiaSlideRendererRef | null>(null);
 
   const updateCaption = (newCaption: string) => {
-    setEditingSlideshow(prev => ({
-      ...prev,
+    const updated = {
+      ...editingSlideshow,
       caption: newCaption
-    }));
-  };
-
-  const updateHook = (newHook: string) => {
-    setEditingSlideshow(prev => ({
-      ...prev,
-      viralHook: newHook
-    }));
+    };
+    setEditingSlideshow(updated);
+    // Auto-save on change
+    onSave(updated);
   };
 
   const addHashtag = (hashtag: string) => {
+    if (!hashtag.trim()) return;
     if (!hashtag.startsWith('#')) hashtag = '#' + hashtag;
-    setEditingSlideshow(prev => ({
-      ...prev,
-      hashtags: [...prev.hashtags, hashtag]
-    }));
+    const updated = {
+      ...editingSlideshow,
+      hashtags: [...editingSlideshow.hashtags, hashtag]
+    };
+    setEditingSlideshow(updated);
+    onSave(updated);
+    setNewHashtag('');
+    setShowHashtagInput(false);
   };
 
   const removeHashtag = (index: number) => {
-    setEditingSlideshow(prev => ({
-      ...prev,
-      hashtags: prev.hashtags.filter((_, i) => i !== index)
-    }));
+    const updated = {
+      ...editingSlideshow,
+      hashtags: editingSlideshow.hashtags.filter((_, i) => i !== index)
+    };
+    setEditingSlideshow(updated);
+    onSave(updated);
   };
 
-  const handleSave = () => {
-    onSave(editingSlideshow);
-    onBack();
+  const handleShare = async () => {
+    try {
+      await exportService.shareSlideshow(editingSlideshow);
+    } catch (error) {
+      console.error('Share error:', error);
+    }
   };
 
-  const handleExport = () => {
+  const exportWithVisibleCapture = async (): Promise<boolean> => {
+    try {
+      console.log('Starting visible capture export...');
+      
+      // Request permissions first
+      const hasPermission = await exportService.requestPermissions();
+      if (!hasPermission) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to Photos to save your slideshow.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+
+      let savedCount = 0;
+      const totalSlides = editingSlideshow.slides.length;
+
+      // Capture each slide by showing it temporarily
+      for (let i = 0; i < totalSlides; i++) {
+        const slide = editingSlideshow.slides[i];
+        console.log(`Capturing slide ${i + 1}/${totalSlides}: ${slide.id}`);
+        
+        // Show the current slide
+        setCurrentExportSlide(i);
+        
+        // Wait for the slide to render
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        try {
+          if (visibleSlideRendererRef.current) {
+            const renderedImageUri = await visibleSlideRendererRef.current.capture();
+            const success = await exportService.saveRenderedImageToPhotos(renderedImageUri, editingSlideshow);
+            if (success) {
+              savedCount++;
+              console.log(`Successfully saved slide ${i + 1}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to capture slide ${i + 1}:`, error);
+        }
+      }
+
+      // Hide the export overlay
+      setCurrentExportSlide(null);
+
+      if (savedCount > 0) {
+        Alert.alert(
+          'Export Successful! 🎨',
+          `${savedCount} of ${totalSlides} slides with text overlays saved to your Camera Roll!`,
+          [{ text: 'OK' }]
+        );
+        return true;
+      } else {
+        Alert.alert(
+          'Export Failed',
+          'Unable to save slides with text overlays. Please try again.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error('Visible capture export failed:', error);
+      return false;
+    }
+  };
+
+  const handleExport = async () => {
     Alert.alert(
       'Export Slideshow',
-      'Choose your export format:',
+      'Choose how you want to export your slideshow:',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'TikTok Video', onPress: () => exportToTikTok() },
-        { text: 'Instagram Story', onPress: () => exportToInstagram() },
-        { text: 'Individual Slides', onPress: () => exportIndividualSlides() },
+        { 
+          text: 'Save Images Only', 
+          onPress: async () => {
+            setIsExporting(true);
+            try {
+              const success = await exportService.exportSlideshowToPhotos(editingSlideshow);
+              if (success) {
+                onExport(editingSlideshow);
+              }
+            } catch (error) {
+              console.error('Export failed:', error);
+              Alert.alert('Export Error', 'Failed to export slideshow. Please try again.');
+            } finally {
+              setIsExporting(false);
+            }
+          }
+        },
+        { 
+          text: 'Save with Text Overlays (Skia)', 
+          onPress: async () => {
+            setIsExporting(true);
+            try {
+              // Use Skia server-side rendering for pixel-perfect consistency
+              const success = await exportService.exportSlideshowWithSkiaRendering(editingSlideshow);
+              if (success) {
+                onExport(editingSlideshow);
+              }
+            } catch (error) {
+              console.error('Skia export failed:', error);
+              Alert.alert('Export Error', 'Failed to export slideshow with Skia. Please try again.');
+            } finally {
+              setIsExporting(false);
+            }
+          }
+        },
+        { 
+          text: 'Save with Text Overlays (Canvas)', 
+          onPress: async () => {
+            setIsExporting(true);
+            try {
+              // Use Canvas server-side rendering as fallback
+              const success = await exportService.exportSlideshowWithServerRendering(editingSlideshow);
+              if (success) {
+                onExport(editingSlideshow);
+              }
+            } catch (error) {
+              console.error('Canvas export failed:', error);
+              Alert.alert('Export Error', 'Failed to export slideshow with Canvas. Please try again.');
+            } finally {
+              setIsExporting(false);
+            }
+          }
+        },
+        { text: 'Share Content', onPress: handleShare },
       ]
     );
   };
 
-  const exportToTikTok = () => {
-    Alert.alert('Success!', 'Your slideshow has been exported for TikTok. Check your camera roll!');
-    onExport(editingSlideshow);
+  const getViralScoreColor = (score: number) => {
+    if (score >= 8) return colors.success;
+    if (score >= 6) return colors.warning;
+    return colors.error;
   };
 
-  const exportToInstagram = () => {
-    Alert.alert('Success!', 'Your slideshow has been exported for Instagram Stories!');
-    onExport(editingSlideshow);
-  };
-
-  const exportIndividualSlides = () => {
-    Alert.alert('Success!', `All ${editingSlideshow.slides.length} slides exported to your camera roll!`);
-    onExport(editingSlideshow);
-  };
+  const viralScore = editingSlideshow.viralScore || 7.5;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar barStyle="light-content" />
-
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      
       {/* Header */}
       <View style={{
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.lg,
       }}>
-        <TouchableOpacity onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity
+          onPress={onBack}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: colors.glass,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <Text style={{
           color: colors.text,
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: 'bold',
         }}>
-          Edit Details
+          Ready to Share
         </Text>
 
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={{
-            color: colors.primary,
-            fontSize: 16,
-            fontWeight: 'bold',
-          }}>
-            Save
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Viral Score */}
-        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
-          <GlassCard style={{ padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="trending-up" size={20} color={colors.success} style={{ marginRight: spacing.sm }} />
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>
-              Viral Score: {editingSlideshow.estimatedViralScore}/10
-            </Text>
-          </GlassCard>
-        </View>
-
-        {/* Viral Hook */}
-        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
-          <GlassCard style={{ padding: spacing.lg }}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: spacing.sm }}>
-              Viral Hook
-            </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: spacing.md }}>
-              The opening line that grabs attention in the first 2 seconds
-            </Text>
-            {isEditingHook ? (
-              <View>
-                <TextInput
-                  value={editingSlideshow.viralHook}
-                  onChangeText={updateHook}
-                  style={{
-                    color: colors.text,
-                    fontSize: 14,
-                    padding: spacing.sm,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                    borderRadius: borderRadius.sm,
-                    backgroundColor: colors.input,
-                    minHeight: 80,
-                  }}
-                  multiline
-                  autoFocus
-                  placeholder="Enter your viral hook..."
-                  placeholderTextColor={colors.textSecondary}
-                />
-                <TouchableOpacity
-                  onPress={() => setIsEditingHook(false)}
-                  style={{
-                    alignSelf: 'flex-end',
-                    marginTop: spacing.sm,
-                    backgroundColor: colors.primary,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderRadius: borderRadius.sm,
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontWeight: 'bold' }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => setIsEditingHook(true)}>
-                <View style={{
-                  padding: spacing.md,
-                  backgroundColor: colors.glass,
-                  borderRadius: borderRadius.sm,
-                  minHeight: 60,
-                  justifyContent: 'center',
-                }}>
-                  <Text style={{ color: colors.text, fontSize: 14 }}>
-                    {editingSlideshow.viralHook || 'Tap to add viral hook...'}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-                  <Ionicons name="pencil" size={16} color={colors.textSecondary} />
-                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginLeft: spacing.xs }}>
-                    Tap to edit
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </GlassCard>
-        </View>
-
-        {/* Caption */}
-        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
-          <GlassCard style={{ padding: spacing.lg }}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: spacing.sm }}>
-              Caption
-            </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: spacing.md }}>
-              The main description that appears with your post
-            </Text>
-            {isEditingCaption ? (
-              <View>
-                <TextInput
-                  value={editingSlideshow.caption}
-                  onChangeText={updateCaption}
-                  style={{
-                    color: colors.text,
-                    fontSize: 14,
-                    padding: spacing.sm,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                    borderRadius: borderRadius.sm,
-                    backgroundColor: colors.input,
-                    minHeight: 120,
-                  }}
-                  multiline
-                  autoFocus
-                  placeholder="Write your caption..."
-                  placeholderTextColor={colors.textSecondary}
-                />
-                <TouchableOpacity
-                  onPress={() => setIsEditingCaption(false)}
-                  style={{
-                    alignSelf: 'flex-end',
-                    marginTop: spacing.sm,
-                    backgroundColor: colors.primary,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderRadius: borderRadius.sm,
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontWeight: 'bold' }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => setIsEditingCaption(true)}>
-                <View style={{
-                  padding: spacing.md,
-                  backgroundColor: colors.glass,
-                  borderRadius: borderRadius.sm,
-                  minHeight: 80,
-                  justifyContent: 'center',
-                }}>
-                  <Text style={{ color: colors.text, fontSize: 14 }}>
-                    {editingSlideshow.caption || 'Tap to add caption...'}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-                  <Ionicons name="pencil" size={16} color={colors.textSecondary} />
-                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginLeft: spacing.xs }}>
-                    Tap to edit
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </GlassCard>
-        </View>
-
-        {/* Hashtags */}
-        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.xl }}>
-          <GlassCard style={{ padding: spacing.lg }}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold', marginBottom: spacing.sm }}>
-              Hashtags
-            </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: spacing.md }}>
-              Help people discover your content
-            </Text>
-            
-            {/* Current Hashtags */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.sm }}>
-              {editingSlideshow.hashtags.map((hashtag, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => removeHashtag(index)}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 4,
-                    borderRadius: borderRadius.sm,
-                    marginRight: spacing.sm,
-                    marginBottom: spacing.sm,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 12 }}>{hashtag}</Text>
-                  <Ionicons name="close" size={12} color={colors.text} style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Add New Hashtag */}
-            <TextInput
-              placeholder="Add hashtag..."
-              placeholderTextColor={colors.textSecondary}
-              style={{
-                color: colors.text,
-                fontSize: 14,
-                padding: spacing.sm,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: borderRadius.sm,
-                backgroundColor: colors.input,
-              }}
-              onSubmitEditing={(event) => {
-                const hashtag = event.nativeEvent.text.trim();
-                if (hashtag) {
-                  addHashtag(hashtag);
-                  event.target.clear();
-                }
-              }}
-            />
-
-            {/* Suggested Hashtags */}
-            <View style={{ marginTop: spacing.md }}>
-              <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: spacing.sm }}>
-                Suggested:
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {['#viral', '#trending', '#fyp', '#amazing', '#wow', '#mindblown'].map((hashtag) => (
-                  <TouchableOpacity
-                    key={hashtag}
-                    onPress={() => {
-                      if (!editingSlideshow.hashtags.includes(hashtag)) {
-                        addHashtag(hashtag);
-                      }
-                    }}
-                    style={{
-                      backgroundColor: colors.glass,
-                      paddingHorizontal: spacing.sm,
-                      paddingVertical: 4,
-                      borderRadius: borderRadius.sm,
-                      marginRight: spacing.sm,
-                      marginBottom: spacing.sm,
-                      opacity: editingSlideshow.hashtags.includes(hashtag) ? 0.5 : 1,
-                    }}
-                    disabled={editingSlideshow.hashtags.includes(hashtag)}
-                  >
-                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{hashtag}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </GlassCard>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: 100, gap: spacing.md }}>
-          <MagicButton onPress={handleExport} style={{ width: '100%' }}>
-            🚀 Export Slideshow
-          </MagicButton>
-          
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <TouchableOpacity
-            onPress={handleSave}
+            onPress={() => setShowDebugger(true)}
             style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
               backgroundColor: colors.glass,
-              paddingVertical: spacing.md,
-              borderRadius: borderRadius.lg,
               alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>
-              💾 Save Draft
-            </Text>
+            <Ionicons name="bug-outline" size={20} color={colors.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleShare}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: colors.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
+
+      {/* Main Content - No ScrollView */}
+      <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
+        
+        {/* Viral Score Display */}
+        <View style={{
+          alignItems: 'center',
+          marginBottom: spacing.xl,
+        }}>
+          <View style={{
+            width: 120,
+            height: 120,
+            borderRadius: 60,
+            backgroundColor: colors.glass,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: spacing.md,
+          }}>
+            <Text style={{
+              color: getViralScoreColor(viralScore),
+              fontSize: 32,
+              fontWeight: 'bold',
+            }}>
+              {viralScore}
+            </Text>
+            <Text style={{
+              color: colors.muted,
+              fontSize: 14,
+              fontWeight: 'medium',
+            }}>
+              Viral Score
+            </Text>
+          </View>
+          
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.glass,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.full,
+          }}>
+            <Ionicons name="flame" size={16} color={getViralScoreColor(viralScore)} />
+            <Text style={{
+              color: colors.text,
+              fontSize: 14,
+              fontWeight: 'medium',
+              marginLeft: spacing.xs,
+            }}>
+              Ready to go viral!
+            </Text>
+          </View>
+        </View>
+
+        {/* Caption Section */}
+        <View style={{ marginBottom: spacing.xl }}>
+          <Text style={{
+            color: colors.text,
+            fontSize: 16,
+            fontWeight: 'bold',
+            marginBottom: spacing.md,
+          }}>
+            Caption
+          </Text>
+          
+          <TouchableOpacity
+            onPress={() => setIsEditingCaption(true)}
+            style={{
+              minHeight: 100,
+              backgroundColor: colors.glass,
+              borderRadius: borderRadius.lg,
+              padding: spacing.md,
+              borderWidth: isEditingCaption ? 2 : 1,
+              borderColor: isEditingCaption ? colors.primary : colors.border,
+            }}
+          >
+            {isEditingCaption ? (
+              <TextInput
+                value={editingSlideshow.caption}
+                onChangeText={updateCaption}
+                style={{
+                  color: colors.text,
+                  fontSize: 16,
+                  lineHeight: 24,
+                  flex: 1,
+                }}
+                multiline
+                autoFocus
+                placeholder="Write your caption..."
+                placeholderTextColor={colors.muted}
+                onBlur={() => setIsEditingCaption(false)}
+              />
+            ) : (
+              <Text style={{
+                color: editingSlideshow.caption ? colors.text : colors.muted,
+                fontSize: 16,
+                lineHeight: 24,
+              }}>
+                {editingSlideshow.caption || 'Tap to add caption...'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Hashtags Section */}
+        <View style={{ flex: 1 }}>
+          <Text style={{
+            color: colors.text,
+            fontSize: 16,
+            fontWeight: 'bold',
+            marginBottom: spacing.md,
+          }}>
+            Hashtags
+          </Text>
+          
+          <View style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: spacing.sm,
+          }}>
+            {editingSlideshow.hashtags.map((hashtag, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => removeHashtag(index)}
+                style={{
+                  backgroundColor: colors.primaryGlass,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: borderRadius.full,
+                  borderWidth: 1,
+                  borderColor: colors.primary,
+                }}
+              >
+                <Text style={{
+                  color: colors.primary,
+                  fontSize: 14,
+                  fontWeight: 'medium',
+                }}>
+                  {hashtag}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            
+            {showHashtagInput ? (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: colors.glass,
+                borderRadius: borderRadius.full,
+                borderWidth: 1,
+                borderColor: colors.primary,
+                paddingHorizontal: spacing.md,
+              }}>
+                <Text style={{ color: colors.primary, fontSize: 14 }}>#</Text>
+                <TextInput
+                  value={newHashtag}
+                  onChangeText={setNewHashtag}
+                  style={{
+                    flex: 1,
+                    color: colors.text,
+                    fontSize: 14,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.xs,
+                  }}
+                  placeholder="hashtag"
+                  placeholderTextColor={colors.muted}
+                  autoFocus
+                  onSubmitEditing={() => addHashtag(newHashtag)}
+                  onBlur={() => {
+                    if (newHashtag.trim()) {
+                      addHashtag(newHashtag);
+                    } else {
+                      setShowHashtagInput(false);
+                    }
+                  }}
+                />
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setShowHashtagInput(true)}
+                style={{
+                  backgroundColor: colors.glass,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: borderRadius.full,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderStyle: 'dashed',
+                }}
+              >
+                <Text style={{
+                  color: colors.muted,
+                  fontSize: 14,
+                  fontWeight: 'medium',
+                }}>
+                  + Add hashtag
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Bottom Export Button */}
+        <View style={{
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xl,
+        }}>
+          <TouchableOpacity
+            onPress={handleExport}
+            disabled={isExporting}
+            style={{
+              backgroundColor: isExporting ? colors.muted : colors.primary,
+              paddingVertical: spacing.lg,
+              borderRadius: borderRadius.xl,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+              <Ionicons 
+                name={isExporting ? "hourglass-outline" : "download-outline"} 
+                size={20} 
+                color={colors.text} 
+              />
+              <Text style={{
+                color: colors.text,
+                fontSize: 18,
+                fontWeight: 'bold',
+                marginLeft: spacing.sm,
+              }}>
+                {isExporting ? 'Exporting...' : 'Export Video'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Visible SlideRenderer for export */}
+      {currentExportSlide !== null && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <View style={{
+            width: screenWidth * 0.8,
+            height: (screenWidth * 0.8) * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
+            backgroundColor: colors.background,
+          }}>
+            {useSkiaRenderer ? (
+              <SkiaSlideRenderer
+                ref={visibleSkiaSlideRendererRef}
+                slide={editingSlideshow.slides[currentExportSlide]}
+                width={screenWidth * 0.8}
+                height={(screenWidth * 0.8) * (16/9)}
+              />
+            ) : (
+              <SlideRenderer
+                ref={visibleSlideRendererRef}
+                slide={editingSlideshow.slides[currentExportSlide]}
+                width={screenWidth * 0.8}
+                height={(screenWidth * 0.8) * (16/9)}
+              />
+            )}
+          </View>
+          <Text style={{
+            color: colors.text,
+            fontSize: 16,
+            marginTop: spacing.lg,
+            textAlign: 'center',
+          }}>
+            Exporting slide {currentExportSlide + 1} of {editingSlideshow.slides.length}...
+            {useSkiaRenderer && (
+              <Text style={{ color: colors.primary, fontSize: 14 }}>
+                {'\n'}Using Skia for pixel-perfect quality
+              </Text>
+            )}
+          </Text>
+        </View>
+      )}
+
+      {/* Hidden SlideRenderer components for rendering */}
+      <View style={{ 
+        position: 'absolute', 
+        left: -10000, 
+        top: -10000,
+        width: 1080, 
+        height: 1920
+      }}>
+        {editingSlideshow.slides.map((slide) => (
+          <View key={slide.id}>
+            {/* Regular SlideRenderer */}
+            <SlideRenderer
+              ref={(ref) => {
+                if (ref) {
+                  slideRenderersRef.current[slide.id] = ref;
+                }
+              }}
+              slide={slide}
+              width={1080}
+              height={1920}
+            />
+            {/* Skia SlideRenderer */}
+            <SkiaSlideRenderer
+              ref={(ref) => {
+                if (ref) {
+                  skiaSlideRenderersRef.current[slide.id] = ref;
+                }
+              }}
+              slide={slide}
+              width={1080}
+              height={1920}
+            />
+          </View>
+        ))}
+      </View>
+
+      {/* Consistency Debugger */}
+      {showDebugger && (
+        <ConsistencyDebugger
+          slideshow={editingSlideshow}
+          onClose={() => setShowDebugger(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }

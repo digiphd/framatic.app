@@ -299,7 +299,7 @@ export function InlineTextEditor({
           {/* Slide Preview with Text Overlay */}
           <View style={{
             width: screenWidth * 0.8,
-            height: screenWidth * 0.8 * 1.6, // TikTok aspect ratio
+            height: screenWidth * 0.8 * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
             borderRadius: borderRadius.lg,
             overflow: 'hidden',
             backgroundColor: colors.glass,

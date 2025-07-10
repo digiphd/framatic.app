@@ -10,6 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../../styles/theme';
+import { 
+  getReactNativeTextStyle, 
+  getReactNativeBackgroundStyle,
+  calculateResolutionScale,
+  calculateTextBackground,
+  calculateFontSize
+} from '../../shared/slideTransforms';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -26,6 +33,8 @@ interface DraggableTextProps {
   initialScale?: number;
   initialRotation?: number;
   slideId?: string; // Add slideId to make each instance unique
+  slideWidth?: number; // Width of the slide container
+  slideHeight?: number; // Height of the slide container
 }
 
 export function DraggableText({
@@ -37,18 +46,54 @@ export function DraggableText({
   onPress,
   onTextChange,
   onStartTextEdit,
-  initialPosition = { x: screenWidth / 2, y: screenHeight * 0.5 },
+  initialPosition = { x: 0.5, y: 0.25 }, // Default to relative coordinates
   initialScale = 1,
   initialRotation = 0,
   slideId = 'default',
+  slideWidth = screenWidth - (spacing.md * 2),
+  slideHeight = (screenWidth - (spacing.md * 2)) * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
 }: DraggableTextProps) {
-  const [position, setPosition] = useState(initialPosition);
+  // Convert relative coordinates to absolute coordinates for internal use
+  // For proper centering, we need to account for the text container size
+  const convertToAbsolute = (relativePos: { x: number; y: number }) => {
+    const isRelative = relativePos.x <= 1 && relativePos.y <= 1;
+    if (!isRelative) return relativePos;
+    
+    // Calculate accurate text container dimensions using shared logic
+    const resolutionScale = calculateResolutionScale(slideWidth, screenWidth);
+    const fontSize = calculateFontSize(
+      style?.fontSize || 24,
+      scale,
+      resolutionScale
+    );
+    
+    const textBackground = calculateTextBackground(
+      text || '',
+      fontSize,
+      slideWidth,
+      resolutionScale,
+      undefined, // No Canvas context on mobile
+      3 // maxLines
+    );
+    
+    // Calculate center position and then convert to top-left
+    const centerX = relativePos.x * slideWidth;
+    const centerY = relativePos.y * slideHeight;
+    
+    return { 
+      x: centerX - (textBackground.width / 2), 
+      y: centerY - (textBackground.height / 2)
+    };
+  };
+  
+  const [position, setPosition] = useState(convertToAbsolute(initialPosition));
   const [scale, setScale] = useState(initialScale);
   const [rotation, setRotation] = useState(initialRotation);
-  const [lastOffset, setLastOffset] = useState(initialPosition);
+  const [lastOffset, setLastOffset] = useState(convertToAbsolute(initialPosition));
   const [lastScale, setLastScale] = useState(initialScale);
   const [lastRotation, setLastRotation] = useState(initialRotation);
   const [initialDistance, setInitialDistance] = useState(0);
+  const [initialAngle, setInitialAngle] = useState(0);
   
   // Remove debounced update - we'll update only on release
 
@@ -61,32 +106,43 @@ export function DraggableText({
   
   // Initialize or recreate animated values when slideId changes
   if (!pan.current || !scaleAnim.current || !rotationAnim.current) {
-    pan.current = new Animated.ValueXY(initialPosition);
+    pan.current = new Animated.ValueXY(convertToAbsolute(initialPosition));
     scaleAnim.current = new Animated.Value(initialScale);
     rotationAnim.current = new Animated.Value(initialRotation);
   }
 
   // Recreate animated values when slideId changes to ensure complete isolation
   useEffect(() => {
-    pan.current = new Animated.ValueXY(initialPosition);
+    const absolutePosition = convertToAbsolute(initialPosition);
+    pan.current = new Animated.ValueXY(absolutePosition);
     scaleAnim.current = new Animated.Value(initialScale);
     rotationAnim.current = new Animated.Value(initialRotation);
     
-    setPosition(initialPosition);
-    setLastOffset(initialPosition);
+    setPosition(absolutePosition);
+    setLastOffset(absolutePosition);
     setScale(initialScale);
     setLastScale(initialScale);
     setRotation(initialRotation);
     setLastRotation(initialRotation);
     setInitialDistance(0);
+    setInitialAngle(0);
   }, [slideId]);
 
   // Sync internal state with props when they change (e.g., when switching slides)
+  // Only reset position if it's significantly different (not from our own update)
   useEffect(() => {
-    setPosition(initialPosition);
-    setLastOffset(initialPosition);
-    pan.current?.setOffset({ x: 0, y: 0 }); // Reset offset first
-    pan.current?.setValue(initialPosition); // Then set the value
+    const absoluteInitialPosition = convertToAbsolute(initialPosition);
+    
+    // Check if the new position is significantly different from current position
+    // This prevents resetting when the change comes from our own onTextChange
+    const positionDiff = Math.abs(absoluteInitialPosition.x - position.x) + Math.abs(absoluteInitialPosition.y - position.y);
+    
+    if (positionDiff > 10) { // Only reset if position difference is > 10 pixels
+      setPosition(absoluteInitialPosition);
+      setLastOffset(absoluteInitialPosition);
+      pan.current?.setOffset({ x: 0, y: 0 }); // Reset offset first
+      pan.current?.setValue(absoluteInitialPosition); // Then set the value
+    }
   }, [initialPosition.x, initialPosition.y]);
 
   useEffect(() => {
@@ -95,6 +151,7 @@ export function DraggableText({
     scaleAnim.current?.setValue(initialScale);
     scaleAnim.current?.setOffset(0); // Reset offset
     setInitialDistance(0); // Reset gesture state
+    setInitialAngle(0); // Reset gesture state
   }, [initialScale]);
 
   useEffect(() => {
@@ -108,39 +165,15 @@ export function DraggableText({
 
   // Remove inline text sync - handled by overlay
 
+  // Calculate resolution scale for consistency
+  const resolutionScale = calculateResolutionScale(slideWidth, screenWidth);
+  
   const getBackgroundStyle = () => {
-    switch (style?.backgroundMode) {
-      case 'full':
-        return {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          paddingHorizontal: spacing.sm,
-          paddingVertical: spacing.xs,
-          borderRadius: borderRadius.sm,
-        };
-      case 'half':
-        return {
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          paddingHorizontal: spacing.xs,
-          paddingVertical: 2,
-          borderRadius: borderRadius.sm,
-        };
-      case 'white':
-        return {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          paddingHorizontal: spacing.sm,
-          paddingVertical: spacing.xs,
-          borderRadius: borderRadius.sm,
-        };
-      default:
-        return {};
-    }
+    return getReactNativeBackgroundStyle(style, resolutionScale);
   };
 
-  const getTextColor = () => {
-    if (style?.backgroundMode === 'white') {
-      return '#000000'; // Black text on white background
-    }
-    return style?.color || colors.text;
+  const getTextStyle = () => {
+    return getReactNativeTextStyle(style, scale, resolutionScale);
   };
 
   const handleTap = () => {
@@ -190,15 +223,28 @@ export function DraggableText({
       rotationAnim.current?.setOffset(lastRotation);
       rotationAnim.current?.setValue(0);
       
-      // Store initial distance for two-finger gestures
+      // Store initial distance and angle for two-finger gestures
       if (gestureState.numberActiveTouches === 2) {
         const touch1 = evt.nativeEvent.touches[0];
         const touch2 = evt.nativeEvent.touches[1];
-        const distance = Math.sqrt(
-          Math.pow(touch2.pageX - touch1.pageX, 2) + 
-          Math.pow(touch2.pageY - touch1.pageY, 2)
-        );
-        setInitialDistance(distance);
+        
+        // Safety check for touch objects
+        if (touch1 && touch2 && touch1.pageX !== undefined && touch1.pageY !== undefined && 
+            touch2.pageX !== undefined && touch2.pageY !== undefined) {
+          const distance = Math.sqrt(
+            Math.pow(touch2.pageX - touch1.pageX, 2) + 
+            Math.pow(touch2.pageY - touch1.pageY, 2)
+          );
+          const angle = Math.atan2(
+            touch2.pageY - touch1.pageY,
+            touch2.pageX - touch1.pageX
+          ) * (180 / Math.PI);
+          
+          setInitialDistance(distance);
+          setInitialAngle(angle);
+        } else {
+          console.warn('DraggableText: Touch objects incomplete, skipping two-finger gesture setup');
+        }
       }
     },
 
@@ -219,31 +265,40 @@ export function DraggableText({
         const touch1 = evt.nativeEvent.touches[0];
         const touch2 = evt.nativeEvent.touches[1];
         
-        const distance = Math.sqrt(
-          Math.pow(touch2.pageX - touch1.pageX, 2) + 
-          Math.pow(touch2.pageY - touch1.pageY, 2)
-        );
-        
-        const angle = Math.atan2(
-          touch2.pageY - touch1.pageY,
-          touch2.pageX - touch1.pageX
-        ) * (180 / Math.PI);
-
-        // Update scale based on distance ratio (prevents flipping)
-        if (initialDistance > 0) {
-          const scaleRatio = distance / initialDistance;
-          const newScale = Math.max(0.5, Math.min(3, lastScale * scaleRatio));
-          scaleAnim.current?.setValue(newScale - lastScale);
+        // Safety check for touch objects
+        if (touch1 && touch2 && touch1.pageX !== undefined && touch1.pageY !== undefined && 
+            touch2.pageX !== undefined && touch2.pageY !== undefined) {
           
-          // Don't update scale state during drag - let animated values handle it
+          const distance = Math.sqrt(
+            Math.pow(touch2.pageX - touch1.pageX, 2) + 
+            Math.pow(touch2.pageY - touch1.pageY, 2)
+          );
+          
+          const currentAngle = Math.atan2(
+            touch2.pageY - touch1.pageY,
+            touch2.pageX - touch1.pageX
+          ) * (180 / Math.PI);
+
+          // Update scale based on distance ratio (prevents flipping)
+          if (initialDistance > 0) {
+            const scaleRatio = distance / initialDistance;
+            const newScale = Math.max(0.5, Math.min(3, lastScale * scaleRatio));
+            scaleAnim.current?.setValue(newScale - lastScale);
+            
+            // Don't update scale state during drag - let animated values handle it
+          }
+          
+          // Update rotation - use change from initial angle
+          if (initialAngle !== 0) {
+            const rotationChange = currentAngle - initialAngle;
+            rotationAnim.current?.setValue(rotationChange);
+          }
+          
+          // Don't update rotation state during drag - let animated values handle it
+          // Parent will be notified on release
+        } else {
+          console.warn('DraggableText: Touch objects incomplete during move, skipping two-finger gesture');
         }
-        
-        // Update rotation
-        const normalizedRotation = angle - lastRotation;
-        rotationAnim.current?.setValue(normalizedRotation);
-        
-        // Don't update rotation state during drag - let animated values handle it
-        // Parent will be notified on release
       }
     },
 
@@ -267,26 +322,24 @@ export function DraggableText({
         pan.current?.flattenOffset();
       }
       
-      // Handle scale and rotation release
-      if (gestureState.numberActiveTouches === 2 && initialDistance > 0) {
-        const touch1 = evt.nativeEvent.touches[0];
-        const touch2 = evt.nativeEvent.touches[1];
-        const distance = Math.sqrt(
-          Math.pow(touch2.pageX - touch1.pageX, 2) + 
-          Math.pow(touch2.pageY - touch1.pageY, 2)
-        );
-        const scaleRatio = distance / initialDistance;
-        finalScale = Math.max(0.5, Math.min(3, lastScale * scaleRatio));
+      // Handle scale and rotation release (use stored values from last move)
+      if (initialDistance > 0) {
+        // Use the current animated values to get final scale
+        // The scale would have been updated during move
+        const currentScaleValue = scaleAnim.current?._value || 1;
+        finalScale = Math.max(0.5, Math.min(3, lastScale + currentScaleValue));
         
         setLastScale(finalScale);
         setScale(finalScale);
+      }
+      
+      if (initialAngle !== 0) {
+        // Use the current animated values to get final rotation
+        // The rotation would have been updated during move
+        const currentRotationValue = rotationAnim.current?._value || 0;
+        finalRotation = lastRotation + currentRotationValue;
         
-        // Calculate final rotation
-        const angle = Math.atan2(
-          touch2.pageY - touch1.pageY,
-          touch2.pageX - touch1.pageX
-        ) * (180 / Math.PI);
-        finalRotation = angle;
+        console.log('DraggableText: Two-finger rotation detected - lastRotation:', lastRotation, 'rotationChange:', currentRotationValue, 'finalRotation:', finalRotation);
         
         setLastRotation(finalRotation);
         setRotation(finalRotation);
@@ -295,8 +348,38 @@ export function DraggableText({
       scaleAnim.current?.flattenOffset();
       rotationAnim.current?.flattenOffset();
       
+      // Convert absolute coordinates back to relative coordinates for consistency
+      // Need to account for the centering offset we applied earlier
+      const resolutionScale = calculateResolutionScale(slideWidth, screenWidth);
+      const fontSize = calculateFontSize(
+        style?.fontSize || 24,
+        finalScale,
+        resolutionScale
+      );
+      
+      const textBackground = calculateTextBackground(
+        text || '',
+        fontSize,
+        slideWidth,
+        resolutionScale,
+        undefined, // No Canvas context on mobile
+        3 // maxLines
+      );
+      
+      // Convert top-left position back to center position
+      const centerX = finalPosition.x + (textBackground.width / 2);
+      const centerY = finalPosition.y + (textBackground.height / 2);
+      
+      const relativePosition = {
+        x: centerX / slideWidth,
+        y: centerY / slideHeight
+      };
+      
+      console.log('DraggableText: Converting position - Absolute:', finalPosition, 'Relative:', relativePosition, 'Slide dimensions:', slideWidth, 'x', slideHeight);
+      
       // Always notify parent of changes with final values immediately
-      onTextChange(text, style, finalPosition, finalScale, finalRotation);
+      console.log('DraggableText: Notifying parent - scale:', finalScale, 'rotation:', finalRotation);
+      onTextChange(text, style, relativePosition, finalScale, finalRotation);
     },
   });
 
@@ -341,18 +424,7 @@ export function DraggableText({
         }}
       >
         <Text
-          style={{
-            color: getTextColor(),
-            fontSize: 24,
-            fontWeight: style?.fontWeight || 'bold',
-            fontStyle: style?.fontStyle || 'normal',
-            textTransform: style?.textTransform || 'none',
-            letterSpacing: style?.letterSpacing || 0,
-            textAlign: 'center',
-            textShadowColor: style?.backgroundMode === 'white' ? 'transparent' : 'rgba(0, 0, 0, 0.8)',
-            textShadowOffset: { width: 1, height: 1 },
-            textShadowRadius: style?.backgroundMode === 'white' ? 0 : 2,
-          }}
+          style={getTextStyle()}
         >
           {text || (isEditing ? 'Tap to add text...' : '')}
         </Text>

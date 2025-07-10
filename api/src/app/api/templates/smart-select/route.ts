@@ -84,58 +84,154 @@ async function generateSmartTemplateSelection(options: {
 
   const templates = [
     {
-      id: 'hidden_gems',
-      name: 'Hidden Gems',
-      description: 'Secret places that blow up',
-      viral_rate: 89,
-      optimal_for: ['discoveries', 'secrets', 'locations', 'tips'],
-      emotions: ['curiosity', 'surprise', 'exclusive'],
-      content_types: ['travel', 'food', 'lifestyle', 'location']
-    },
-    {
-      id: 'before_after',
-      name: 'Before/After',
-      description: 'Transformation stories',
-      viral_rate: 84,
-      optimal_for: ['progress', 'transformation', 'comparison', 'results'],
-      emotions: ['inspiring', 'motivating', 'shocking'],
-      content_types: ['transformation', 'progress', 'comparison']
-    },
-    {
-      id: 'day_in_life',
-      name: 'Day in Life',
-      description: 'Authentic daily routines',
-      viral_rate: 75,
-      optimal_for: ['routine', 'authentic', 'relatable', 'daily'],
-      emotions: ['authentic', 'relatable', 'candid'],
-      content_types: ['lifestyle', 'routine', 'personal']
-    },
-    {
-      id: 'photo_dump',
-      name: 'Photo Dump',
-      description: 'Casual authentic moments',
-      viral_rate: 75,
-      optimal_for: ['memories', 'candid', 'collection', 'moments'],
-      emotions: ['nostalgic', 'authentic', 'casual'],
-      content_types: ['mixed', 'candid', 'lifestyle']
-    },
-    {
-      id: 'things_that',
-      name: 'Things That',
-      description: 'Lists, facts, and countdowns',
-      viral_rate: 82,
-      optimal_for: ['lists', 'facts', 'tips', 'educational'],
-      emotions: ['curious', 'educational', 'valuable'],
-      content_types: ['educational', 'list', 'tips']
+      id: 'question_hook',
+      name: 'Question Hook',
+      description: 'Provocative questions that demand answers',
+      viral_rate: 92,
+      optimal_for: ['questions', 'curiosity', 'engagement', 'discussions'],
+      emotions: ['curious', 'engaging', 'provocative'],
+      content_types: ['educational', 'discussion', 'advice'],
+      content_progression: ['hook_question', 'build_intrigue', 'reveal_answer', 'call_to_action'],
+      writing_style_prompts: {
+        hook: 'Start with a provocative question that makes viewers stop scrolling',
+        build: 'Build intrigue with follow-up questions or partial reveals',
+        reveal: 'Provide the answer or insight that satisfies curiosity',
+        conclusion: 'End with a question to encourage engagement'
+      },
+      narrative_structure: {
+        slide_1: { role: 'hook', style: 'provocative_question', viral_pattern: 'curiosity_gap' },
+        slide_2: { role: 'build', style: 'follow_up_question', viral_pattern: 'increased_intrigue' },
+        slide_3: { role: 'reveal', style: 'answer_reveal', viral_pattern: 'satisfaction' },
+        slide_4: { role: 'conclusion', style: 'engagement_question', viral_pattern: 'call_to_action' }
+      },
+      textStyle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundMode: 'full',
+        letterSpacing: 0.5,
+      }
     },
     {
       id: 'controversial_take',
-      name: 'Hot Take',
-      description: 'Bold opinions and debates',
-      viral_rate: 71,
+      name: 'Controversial',
+      description: 'Bold statements that spark debate',
+      viral_rate: 88,
       optimal_for: ['opinions', 'debates', 'controversial', 'discussion'],
       emotions: ['provocative', 'engaging', 'polarizing'],
-      content_types: ['opinion', 'discussion', 'debate']
+      content_types: ['opinion', 'discussion', 'debate'],
+      content_progression: ['bold_statement', 'support_argument', 'address_objections', 'defend_position'],
+      writing_style_prompts: {
+        hook: 'Make a bold, polarizing statement that challenges conventional wisdom',
+        build: 'Provide evidence or reasoning that supports your controversial take',
+        reveal: 'Address common objections and counter-arguments',
+        conclusion: 'Reinforce your position and invite debate'
+      },
+      narrative_structure: {
+        slide_1: { role: 'hook', style: 'controversial_statement', viral_pattern: 'shock_value' },
+        slide_2: { role: 'build', style: 'supporting_evidence', viral_pattern: 'justification' },
+        slide_3: { role: 'reveal', style: 'counter_objections', viral_pattern: 'debate_fuel' },
+        slide_4: { role: 'conclusion', style: 'position_defense', viral_pattern: 'engagement_bait' }
+      },
+      textStyle: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(220, 38, 38, 0.9)',
+        backgroundMode: 'full',
+        letterSpacing: 0.3,
+      }
+    },
+    {
+      id: 'reaction_hook',
+      name: 'Reaction Hook',
+      description: 'Shock value that stops the scroll',
+      viral_rate: 85,
+      optimal_for: ['reactions', 'surprise', 'shocking', 'wtf'],
+      emotions: ['shocking', 'surprising', 'curious'],
+      content_types: ['reaction', 'surprise', 'reveal'],
+      content_progression: ['shock_statement', 'build_suspense', 'reveal_truth', 'reaction_prompt'],
+      writing_style_prompts: {
+        hook: 'Start with something shocking or unexpected that stops the scroll',
+        build: 'Build suspense with hints about what really happened',
+        reveal: 'Reveal the shocking truth or surprising outcome',
+        conclusion: 'Prompt viewers to share their reaction'
+      },
+      narrative_structure: {
+        slide_1: { role: 'hook', style: 'shock_statement', viral_pattern: 'pattern_interrupt' },
+        slide_2: { role: 'build', style: 'suspense_building', viral_pattern: 'anticipation' },
+        slide_3: { role: 'reveal', style: 'truth_reveal', viral_pattern: 'payoff' },
+        slide_4: { role: 'conclusion', style: 'reaction_prompt', viral_pattern: 'engagement' }
+      },
+      textStyle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(124, 58, 237, 0.85)',
+        backgroundMode: 'full',
+        letterSpacing: 0.2,
+      }
+    },
+    {
+      id: 'story_reveal',
+      name: 'Story Reveal',
+      description: 'Behind-the-scenes secrets exposed',
+      viral_rate: 82,
+      optimal_for: ['secrets', 'reveals', 'behind-scenes', 'insider'],
+      emotions: ['exclusive', 'curious', 'insider'],
+      content_types: ['secrets', 'reveal', 'insider', 'story'],
+      content_progression: ['tease_secret', 'build_context', 'reveal_secret', 'share_impact'],
+      writing_style_prompts: {
+        hook: 'Tease an exclusive secret or behind-the-scenes reveal',
+        build: 'Provide context about why this secret matters',
+        reveal: 'Expose the secret with compelling details',
+        conclusion: 'Share the impact or consequences of this revelation'
+      },
+      narrative_structure: {
+        slide_1: { role: 'hook', style: 'secret_tease', viral_pattern: 'exclusivity' },
+        slide_2: { role: 'build', style: 'context_setting', viral_pattern: 'importance' },
+        slide_3: { role: 'reveal', style: 'secret_reveal', viral_pattern: 'insider_knowledge' },
+        slide_4: { role: 'conclusion', style: 'impact_sharing', viral_pattern: 'value_delivery' }
+      },
+      textStyle: {
+        fontSize: 25,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(5, 150, 105, 0.9)',
+        backgroundMode: 'full',
+        letterSpacing: 0.4,
+      }
+    },
+    {
+      id: 'money_success',
+      name: 'Money/Success',
+      description: 'Financial wisdom and success stories',
+      viral_rate: 79,
+      optimal_for: ['money', 'success', 'financial', 'wealth', 'business'],
+      emotions: ['motivating', 'inspiring', 'valuable'],
+      content_types: ['financial', 'business', 'success', 'motivation'],
+      content_progression: ['success_hook', 'struggle_story', 'solution_reveal', 'action_call'],
+      writing_style_prompts: {
+        hook: 'Start with a compelling success outcome or financial win',
+        build: 'Share the struggle or challenge that preceded success',
+        reveal: 'Reveal the key insight, strategy, or solution that worked',
+        conclusion: 'Call viewers to take action on this knowledge'
+      },
+      narrative_structure: {
+        slide_1: { role: 'hook', style: 'success_outcome', viral_pattern: 'aspiration' },
+        slide_2: { role: 'build', style: 'struggle_context', viral_pattern: 'relatability' },
+        slide_3: { role: 'reveal', style: 'solution_reveal', viral_pattern: 'value_bomb' },
+        slide_4: { role: 'conclusion', style: 'action_prompt', viral_pattern: 'motivation' }
+      },
+      textStyle: {
+        fontSize: 23,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(217, 119, 6, 0.85)',
+        backgroundMode: 'full',
+        letterSpacing: 0.1,
+      }
     }
   ];
 

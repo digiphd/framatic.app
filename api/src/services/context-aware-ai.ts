@@ -60,7 +60,7 @@ export class ContextAwareAI {
     const selectedTemplate = await this.selectOptimalTemplate(userContext, assets, templatePreference);
 
     // 2. Select and order the best assets based on context
-    const selectedAssets = await this.selectOptimalAssets(userContext, assets, selectedTemplate, maxSlides);
+    const selectedAssets = await this.selectOptimalAssets(userContext, assets, selectedTemplate, maxSlides, userPrompt);
 
     // 3. Generate context-aware content
     const slideshow = await this.generateContextualContent(
@@ -164,38 +164,36 @@ Select the most suitable template and provide a brief reasoning. Format your res
     userContext: UserContext,
     assets: any[],
     selectedTemplate: any,
-    maxSlides: number
+    maxSlides: number,
+    userPrompt?: string
   ): Promise<any[]> {
-    // Score and rank assets based on context relevance
+    // Score and rank assets based on context relevance AND user prompt relevance
     const scoredAssets = assets.map(asset => {
       let contextScore = 0;
       
-      // Score based on viral potential
-      contextScore += (asset.viral_potential_score || 0) * 0.3;
+      // Score based on relevance to user prompt (NEW - highest priority)
+      if (userPrompt && userPrompt.trim() !== 'Create an engaging slideshow about my content') {
+        contextScore += this.calculatePromptRelevance(asset, userPrompt) * 0.4;
+      }
       
-      // Score based on quality
-      contextScore += (asset.quality_score || 0) * 0.2;
+      // Score based on viral potential (reduced weight)
+      contextScore += (asset.viral_potential_score || 0) * 0.2;
+      
+      // Score based on quality (reduced weight)
+      contextScore += (asset.quality_score || 0) * 0.15;
       
       // Score based on emotional alignment
       const assetEmotions = asset.ai_analysis?.emotions || [];
       const contextEmotions = this.getContextEmotions(userContext, selectedTemplate);
       const emotionMatch = assetEmotions.filter(e => contextEmotions.includes(e)).length;
-      contextScore += (emotionMatch / Math.max(contextEmotions.length, 1)) * 0.2;
+      contextScore += (emotionMatch / Math.max(contextEmotions.length, 1)) * 0.15;
       
       // Score based on content type alignment
       const contentType = asset.ai_analysis?.content_type || 'unknown';
       const templateOptimalTypes = this.getTemplateOptimalTypes(selectedTemplate.template_id);
       if (templateOptimalTypes.includes(contentType)) {
-        contextScore += 0.15;
+        contextScore += 0.1;
       }
-      
-      // Score based on brand keyword presence
-      const tags = asset.ai_analysis?.tags || [];
-      const brandKeywords = userContext.brand_keywords || [];
-      const brandMatch = tags.filter(tag => 
-        brandKeywords.some(keyword => tag.toLowerCase().includes(keyword.toLowerCase()))
-      ).length;
-      contextScore += (brandMatch / Math.max(brandKeywords.length, 1)) * 0.15;
       
       return {
         ...asset,
@@ -211,7 +209,8 @@ Select the most suitable template and provide a brief reasoning. Format your res
     console.log('Selected assets with context scores:', selectedAssets.map(a => ({
       filename: a.original_filename,
       score: a.context_score,
-      viral_potential: a.viral_potential_score
+      viral_potential: a.viral_potential_score,
+      prompt_relevance: userPrompt ? this.calculatePromptRelevance(a, userPrompt) : 0
     })));
 
     return selectedAssets;
@@ -523,6 +522,79 @@ Format as JSON:
     };
 
     return hashtags[templateId] || ['content', 'viral', 'authentic'];
+  }
+
+  private calculatePromptRelevance(asset: any, userPrompt: string): number {
+    if (!userPrompt || !asset.ai_analysis) return 0;
+
+    const prompt = userPrompt.toLowerCase();
+    const assetTags = asset.ai_analysis.tags || [];
+    const assetEmotions = asset.ai_analysis.emotions || [];
+    const assetDescription = asset.ai_analysis.scene_description || '';
+    const assetContentType = asset.ai_analysis.content_type || '';
+    
+    let relevanceScore = 0;
+    
+    // Check for keyword matches in prompt
+    const promptKeywords = prompt.split(' ').filter(word => word.length > 2);
+    
+    // Match against asset tags (high weight)
+    const tagMatches = assetTags.filter(tag => 
+      promptKeywords.some(keyword => tag.toLowerCase().includes(keyword) || keyword.includes(tag.toLowerCase()))
+    ).length;
+    relevanceScore += tagMatches * 2;
+    
+    // Match against emotions (medium weight)
+    const emotionMatches = assetEmotions.filter(emotion => 
+      promptKeywords.some(keyword => emotion.toLowerCase().includes(keyword) || keyword.includes(emotion.toLowerCase()))
+    ).length;
+    relevanceScore += emotionMatches * 1.5;
+    
+    // Match against scene description (medium weight)
+    const descriptionMatches = promptKeywords.filter(keyword => 
+      assetDescription.toLowerCase().includes(keyword)
+    ).length;
+    relevanceScore += descriptionMatches * 1.5;
+    
+    // Match against content type (low weight)
+    const contentMatches = promptKeywords.filter(keyword => 
+      assetContentType.toLowerCase().includes(keyword)
+    ).length;
+    relevanceScore += contentMatches * 1;
+    
+    // Special handling for common themes
+    if (prompt.includes('childhood') || prompt.includes('memories') || prompt.includes('nostalgic')) {
+      if (assetTags.some(tag => ['childhood', 'memories', 'nostalgic', 'family', 'young', 'past'].includes(tag.toLowerCase()))) {
+        relevanceScore += 5;
+      }
+      if (assetEmotions.some(emotion => ['nostalgic', 'sentimental', 'emotional', 'happy'].includes(emotion.toLowerCase()))) {
+        relevanceScore += 3;
+      }
+    }
+    
+    if (prompt.includes('travel') || prompt.includes('adventure') || prompt.includes('journey')) {
+      if (assetTags.some(tag => ['travel', 'adventure', 'journey', 'destination', 'explore'].includes(tag.toLowerCase()))) {
+        relevanceScore += 5;
+      }
+      if (assetContentType.includes('landscape') || assetContentType.includes('location')) {
+        relevanceScore += 3;
+      }
+    }
+    
+    if (prompt.includes('food') || prompt.includes('cooking') || prompt.includes('meal')) {
+      if (assetTags.some(tag => ['food', 'cooking', 'meal', 'recipe', 'dish'].includes(tag.toLowerCase()))) {
+        relevanceScore += 5;
+      }
+    }
+    
+    if (prompt.includes('workout') || prompt.includes('fitness') || prompt.includes('exercise')) {
+      if (assetTags.some(tag => ['fitness', 'workout', 'exercise', 'gym', 'sport'].includes(tag.toLowerCase()))) {
+        relevanceScore += 5;
+      }
+    }
+    
+    // Normalize score to 0-10 range
+    return Math.min(relevanceScore, 10);
   }
 }
 

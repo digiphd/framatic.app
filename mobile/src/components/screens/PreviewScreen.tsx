@@ -20,6 +20,7 @@ import { MagicButton } from '../ui/magic-button';
 import { DraggableText } from '../ui/draggable-text';
 import { TikTokTextEditor } from '../ui/tiktok-text-editor';
 import { TextEditOverlay } from '../ui/text-edit-overlay';
+import { TemplateSelector } from '../ui/template-selector';
 import { R2Image } from '../ui/R2Image';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 
@@ -70,10 +71,145 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [showTextEditor, setShowTextEditor] = useState(false);
   const [showTextEditOverlay, setShowTextEditOverlay] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const slideListRef = useRef<FlatList>(null);
+
+  // Default templates (could come from props or API)
+  const defaultTemplates = [
+    {
+      id: 'question_hook',
+      name: 'Question Hook',
+      viralRate: 92,
+      description: 'Provocative questions that demand answers',
+      emoji: '❓',
+      gradient: ['#EF4444', '#F87171'],
+      example: 'Why this advice is actually terrible...',
+      textStyle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundMode: 'full',
+        letterSpacing: 0.5,
+      },
+    },
+    {
+      id: 'controversial_take',
+      name: 'Controversial',
+      viralRate: 88,
+      description: 'Bold statements that spark debate',
+      emoji: '🔥',
+      gradient: ['#DC2626', '#EF4444'],
+      example: 'This might be controversial but...',
+      textStyle: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(220, 38, 38, 0.9)',
+        backgroundMode: 'full',
+        letterSpacing: 0.3,
+      },
+    },
+    {
+      id: 'reaction_hook',
+      name: 'Reaction Hook',
+      viralRate: 85,
+      description: 'Shock value that stops the scroll',
+      emoji: '😱',
+      gradient: ['#7C3AED', '#A855F7'],
+      example: 'how did she do that?! 👀',
+      textStyle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(124, 58, 237, 0.85)',
+        backgroundMode: 'full',
+        letterSpacing: 0.2,
+      },
+    },
+    {
+      id: 'story_reveal',
+      name: 'Story Reveal',
+      viralRate: 82,
+      description: 'Behind-the-scenes secrets exposed',
+      emoji: '🎭',
+      gradient: ['#059669', '#10B981'],
+      example: 'CEO reveals the real reason...',
+      textStyle: {
+        fontSize: 25,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(5, 150, 105, 0.9)',
+        backgroundMode: 'full',
+        letterSpacing: 0.4,
+      },
+    },
+    {
+      id: 'money_success',
+      name: 'Money/Success',
+      viralRate: 79,
+      description: 'Financial wisdom and success stories',
+      emoji: '💰',
+      gradient: ['#D97706', '#F59E0B'],
+      example: 'Your money will work harder...',
+      textStyle: {
+        fontSize: 23,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(217, 119, 6, 0.85)',
+        backgroundMode: 'full',
+        letterSpacing: 0.1,
+      },
+    },
+    {
+      id: 'photo_dump',
+      name: 'Photo Dump',
+      viralRate: 75,
+      description: 'Casual authentic moments',
+      emoji: '📸',
+      gradient: ['#06B6D4', '#67E8F9'],
+      example: 'Recent camera roll hits...',
+      textStyle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundMode: 'full',
+        letterSpacing: 0.1,
+      },
+    },
+  ];
+
+  const currentTemplate = defaultTemplates.find(t => t.id === editingSlideshow.template) || defaultTemplates[0];
+
+  // Debug logging - avoid logging in useEffect to prevent update scheduling
+  if (__DEV__) {
+    console.log('Current slideshow template:', editingSlideshow.template);
+    console.log('Found matching template:', currentTemplate?.id);
+    console.log('Available templates:', defaultTemplates.map(t => t.id));
+  }
+
+  // Apply template to all slides
+  const applyTemplateToAllSlides = useCallback((template: any) => {
+    setEditingSlideshow(prev => ({
+      ...prev,
+      template: template.id,
+      slides: prev.slides.map(slide => ({
+        ...slide,
+        textStyle: {
+          ...slide.textStyle,
+          ...template.textStyle,
+        }
+      }))
+    }));
+  }, []);
 
   // Update slide text function
   const updateSlideText = useCallback((slideId: string, newText: string, style?: any, position?: { x: number; y: number }, scale?: number, rotation?: number) => {
+    if (position) {
+      console.log('PreviewScreen: updateSlideText called with position:', position, 'for slide:', slideId);
+    }
+    
     setEditingSlideshow(prev => ({
       ...prev,
       slides: prev.slides.map(slide =>
@@ -331,6 +467,24 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <TouchableOpacity
+            onPress={() => setShowTemplateSelector(true)}
+            style={{
+              backgroundColor: colors.glass,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderRadius: borderRadius.lg,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={{ fontSize: 16 }}>{currentTemplate.emoji}</Text>
+            <Text style={{ color: colors.text, fontSize: 12, fontWeight: 'bold' }}>
+              Template
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
             onPress={() => setIsEditMode(!isEditMode)}
             style={{
               backgroundColor: isEditMode ? colors.primary : colors.glass,
@@ -373,7 +527,7 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
         <View 
           style={{
             width: screenWidth - (spacing.md * 2),
-            height: (screenWidth - (spacing.md * 2)) * 1.6, // TikTok aspect ratio
+            height: (screenWidth - (spacing.md * 2)) * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
             borderRadius: borderRadius.xl,
             overflow: 'hidden',
             backgroundColor: colors.glass,
@@ -410,10 +564,12 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
                 setSelectedTextId(currentSlide.id);
                 setShowTextEditOverlay(true);
               }}
-              initialPosition={currentSlide.textPosition || { x: 100, y: 200 }}
+              initialPosition={currentSlide.textPosition || { x: 0.5, y: 0.25 }}
               initialScale={currentSlide.textScale || 1}
               initialRotation={currentSlide.textRotation || 0}
               slideId={currentSlide.id}
+              slideWidth={screenWidth - (spacing.md * 2)}
+              slideHeight={(screenWidth - (spacing.md * 2)) * (16/9)}
             />
           )}
 
@@ -494,6 +650,19 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
           position={editingSlideshow.slides.find(s => s.id === selectedTextId)?.textPosition || { x: 100, y: 200 }}
           scale={editingSlideshow.slides.find(s => s.id === selectedTextId)?.textScale || 1}
           rotation={editingSlideshow.slides.find(s => s.id === selectedTextId)?.textRotation || 0}
+        />
+      )}
+
+      {/* Template Selector */}
+      {showTemplateSelector && (
+        <TemplateSelector
+          templates={defaultTemplates}
+          selectedTemplate={currentTemplate}
+          onTemplateChange={(template) => {
+            applyTemplateToAllSlides(template);
+            setShowTemplateSelector(false);
+          }}
+          onClose={() => setShowTemplateSelector(false)}
         />
       )}
     </SafeAreaView>

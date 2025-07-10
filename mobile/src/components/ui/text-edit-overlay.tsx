@@ -112,6 +112,22 @@ export function TextEditOverlay({
         setText(initialText);
       }
       
+      // Re-sync style states with current initialStyle
+      const matchedStyle = textStyles.find(s => s.fontWeight === initialStyle?.fontWeight);
+      if (matchedStyle && selectedStyle.id !== matchedStyle.id) {
+        setSelectedStyle(matchedStyle);
+      }
+      
+      const matchedColor = textColors.find(c => c.color === initialStyle?.color);
+      if (matchedColor && selectedColor.id !== matchedColor.id) {
+        setSelectedColor(matchedColor);
+      }
+      
+      const currentBackgroundMode = initialStyle?.backgroundMode || 'none';
+      if (backgroundMode !== currentBackgroundMode) {
+        setBackgroundMode(currentBackgroundMode);
+      }
+      
       // Reset animation values
       textInputOpacity.setValue(0);
       textInputScale.setValue(0.8);
@@ -162,7 +178,7 @@ export function TextEditOverlay({
         }),
       ]).start();
     }
-  }, [visible, initialText]);
+  }, [visible, initialText, initialStyle]);
 
   // Handle text changes - don't call onTextChange on every keystroke
   const handleTextInputChange = (newText: string) => {

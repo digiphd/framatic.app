@@ -64,32 +64,52 @@ class OpenRouterClient {
     return response.json();
   }
 
-  // Voice to text using Whisper
+  // Voice to text using OpenAI Whisper directly (OpenRouter doesn't support audio endpoints)
   async voiceToText(audioFile: File | Buffer): Promise<string> {
     const formData = new FormData();
     
     if (audioFile instanceof Buffer) {
-      const blob = new Blob([audioFile], { type: 'audio/webm' });
-      formData.append('file', blob, 'audio.webm');
+      const blob = new Blob([audioFile], { type: 'audio/wav' });
+      formData.append('file', blob, 'recording.wav');
     } else {
-      formData.append('file', audioFile);
+      // Convert the file to a Buffer and then to a Blob with correct MIME type
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+      formData.append('file', blob, 'recording.wav');
     }
     
-    formData.append('model', OPENROUTER_MODELS.VOICE_TO_TEXT);
+    formData.append('model', 'whisper-1');
 
-    const response = await fetch(`${this.baseUrl}/audio/transcriptions`, {
+    // Debug: Check what we're sending
+    console.log('FormData entries:');
+    for (const [key, value] of formData.entries()) {
+      if (key === 'file') {
+        console.log(`  ${key}: ${value instanceof Blob ? 'Blob' : 'File'} - size: ${value.size}, type: ${value.type}`);
+      } else {
+        console.log(`  ${key}: ${value}`);
+      }
+    }
+
+    // Use OpenAI API directly for transcription
+    const openaiApiKey = config.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    console.log('Using OpenAI API key:', openaiApiKey ? `sk-***${openaiApiKey.slice(-4)}` : 'undefined');
+    
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://famatic.app',
-        'X-Title': 'Famatic.app'
+        'Authorization': `Bearer ${openaiApiKey}`,
       },
       body: formData
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(`OpenRouter Whisper API error: ${response.status} - ${JSON.stringify(error)}`);
+      console.error('OpenAI Whisper API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: error
+      });
+      throw new Error(`OpenAI Whisper API error: ${response.status} - ${JSON.stringify(error)}`);
     }
 
     const result = await response.json();

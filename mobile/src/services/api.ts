@@ -537,6 +537,69 @@ export class ApiService {
       throw error;
     }
   }
+
+  async renderSlideshow(slideshow: any): Promise<{
+    success: boolean;
+    renderedUrls?: string[];
+    count?: number;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/slideshow/render`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slides: slideshow.slides,
+          userId: '00000000-0000-0000-0000-000000000001', // Default user ID for now
+          slideshowId: slideshow.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to render slideshow on server');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Render slideshow error:', error);
+      throw error;
+    }
+  }
+
+  async renderSlideshowWithSkia(slideshow: any): Promise<{
+    success: boolean;
+    renderedUrls?: string[];
+    count?: number;
+    message?: string;
+    error?: string;
+    renderingEngine?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/slideshow/render-skia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slides: slideshow.slides,
+          userId: '00000000-0000-0000-0000-000000000001', // Default user ID for now
+          slideshowId: slideshow.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to render slideshow with Skia on server');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Render slideshow with Skia error:', error);
+      throw error;
+    }
+  }
 }
 
 export const apiService = ApiService.getInstance();
