@@ -63,6 +63,7 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
   const [refreshing, setRefreshing] = useState(false);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const spinValue = useRef(new Animated.Value(0)).current;
+  const loadingOpacity = useRef(new Animated.Value(0)).current;
 
   // Setup rotation animation for processing indicators
   useEffect(() => {
@@ -76,6 +77,7 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
     };
     spin();
   }, [spinValue]);
+
 
   // Load slideshows and setup realtime
   useEffect(() => {
@@ -598,32 +600,223 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
         }
       >
         {loading ? (
-          <GlassCard style={{
-            padding: spacing.xl,
+          <View style={{
             alignItems: 'center',
-            marginTop: spacing.xl,
+            marginTop: spacing.xl * 2,
+            paddingHorizontal: spacing.lg,
           }}>
-            <Animated.View
+            {/* Main Loading Card */}
+            <View
               style={{
-                transform: [{
-                  rotate: spinValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '360deg'],
-                  }),
-                }],
-                marginBottom: spacing.md,
+                padding: spacing.xl * 1.5,
+                alignItems: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                borderRadius: borderRadius.xl,
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.25)',
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 20,
+                elevation: 20,
+                minWidth: 280,
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              <Ionicons name="sync" size={48} color={colors.primary} />
-            </Animated.View>
-            <Text style={{
-              color: colors.text,
-              fontSize: 16,
-              fontWeight: '600',
+              {/* Animated Background Gradient */}
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  opacity: loadingOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.3, 0.8],
+                  }),
+                }}
+              >
+                <LinearGradient
+                  colors={[
+                    'rgba(147, 51, 234, 0.15)', // purple
+                    'rgba(59, 130, 246, 0.15)', // blue
+                    'rgba(16, 185, 129, 0.15)'  // green
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
+                />
+              </Animated.View>
+
+              {/* Animated Icon Container */}
+              <Animated.View
+                style={{
+                  marginBottom: spacing.lg,
+                  padding: spacing.lg,
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  borderRadius: 50,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  transform: [{
+                    rotate: spinValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '360deg'],
+                    }),
+                  }],
+                }}
+              >
+                <Ionicons name="film" size={56} color={colors.primary} />
+              </Animated.View>
+              
+              {/* Loading Text */}
+              <Text style={{
+                color: colors.text,
+                fontSize: 22,
+                fontWeight: '700',
+                marginBottom: spacing.sm,
+                textAlign: 'center',
+                letterSpacing: 0.5,
+              }}>
+                Loading Slideshows
+              </Text>
+              
+              <Text style={{
+                color: colors.textSecondary,
+                fontSize: 15,
+                textAlign: 'center',
+                lineHeight: 22,
+                opacity: 0.9,
+                marginBottom: spacing.lg,
+              }}>
+                Discovering your viral content...
+              </Text>
+              
+              {/* Animated Progress Dots */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+              }}>
+                {[0, 1, 2].map((index) => (
+                  <Animated.View
+                    key={index}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: colors.primary,
+                      opacity: spinValue.interpolate({
+                        inputRange: [
+                          (index * 0.33),
+                          (index * 0.33) + 0.33,
+                          1
+                        ],
+                        outputRange: [0.3, 1, 0.3],
+                        extrapolate: 'clamp',
+                      }),
+                      transform: [{
+                        scale: spinValue.interpolate({
+                          inputRange: [
+                            (index * 0.33),
+                            (index * 0.33) + 0.33,
+                            1
+                          ],
+                          outputRange: [0.8, 1.2, 0.8],
+                          extrapolate: 'clamp',
+                        }),
+                      }],
+                    }}
+                  />
+                ))}
+              </View>
+              
+              {/* Floating Particles */}
+              <View style={{
+                position: 'absolute',
+                top: -20,
+                left: -20,
+                right: -20,
+                bottom: -20,
+                overflow: 'hidden',
+                borderRadius: borderRadius.xl,
+              }}>
+                {[...Array(10)].map((_, index) => (
+                  <Animated.View
+                    key={index}
+                    style={{
+                      position: 'absolute',
+                      width: 4,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colors.primary,
+                      opacity: 0.4,
+                      top: `${10 + (index * 8)}%`,
+                      left: `${5 + (index * 9)}%`,
+                      transform: [{
+                        translateY: spinValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, -25],
+                        }),
+                      }, {
+                        scale: spinValue.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: [0.3, 1, 0.3],
+                        }),
+                      }],
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Secondary Loading Indicators */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: spacing.xl,
+              gap: spacing.lg,
             }}>
-              Loading slideshows...
-            </Text>
-          </GlassCard>
+              {['📱', '🎬', '✨'].map((emoji, index) => (
+                <Animated.View
+                  key={index}
+                  style={{
+                    padding: spacing.md,
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    borderRadius: borderRadius.lg,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    transform: [{
+                      scale: spinValue.interpolate({
+                        inputRange: [
+                          (index * 0.25),
+                          (index * 0.25) + 0.5,
+                          1
+                        ],
+                        outputRange: [0.9, 1.1, 0.9],
+                        extrapolate: 'clamp',
+                      }),
+                    }],
+                    opacity: spinValue.interpolate({
+                      inputRange: [
+                        (index * 0.25),
+                        (index * 0.25) + 0.5,
+                        1
+                      ],
+                      outputRange: [0.5, 1, 0.5],
+                      extrapolate: 'clamp',
+                    }),
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>{emoji}</Text>
+                </Animated.View>
+              ))}
+            </View>
+          </View>
         ) : slideshows.length === 0 ? (
           <GlassCard style={{
             padding: spacing.xl,
@@ -670,6 +863,7 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
           </View>
         )}
       </ScrollView>
+
     </View>
   );
 }

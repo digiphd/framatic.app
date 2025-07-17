@@ -1,9 +1,9 @@
 # Launch Todo List
 
 ## Immediate Priority: Make mobile app usable for my social media
-- [ ] Improve the loading screen when you click to slide show
-- [ ] One more feautre to add context to the logged in user so the slide show is
+- [x] Improve the loading screen when you click to slide show
 - [ ] Make the templates look amazing and look exactly like tiktok
+- [ ] One more feautre to add context to the logged in user so the slide show is
 - [ ] Revise server-side rendering to ensure text formatting matches edit menu
 - [ ] Fix background rendering consistency between server and client
 - [ ] How to get this deployed to my phone and using the Vercel API? So I don't have to have the server running locally
