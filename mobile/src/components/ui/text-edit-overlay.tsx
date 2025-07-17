@@ -280,7 +280,8 @@ export function TextEditOverlay({
       fontSize: 24,
       fontWeight: selectedStyle.fontWeight || 'normal',
       fontStyle: selectedStyle.fontStyle || 'normal',
-      textTransform: selectedStyle.textTransform || 'none',
+      // Don't apply textTransform to TextInput - let it show the original text
+      // textTransform: selectedStyle.textTransform || 'none',
       letterSpacing: selectedStyle.letterSpacing || 0,
       textAlign: 'center' as const,
       minWidth: 100,

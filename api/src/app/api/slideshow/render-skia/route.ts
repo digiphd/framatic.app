@@ -9,7 +9,9 @@ import {
   calculateResolutionScale,
   applyCanvasTextStyle,
   drawCanvasTextWithShadow,
-  STANDARD_CANVAS
+  wrapText,
+  STANDARD_CANVAS,
+  TEXT_STYLE_CONSTANTS
 } from '../../../../shared/slideTransforms';
 
 // Use Canvas API for server-side rendering (Skia Web has compatibility issues)
@@ -115,8 +117,8 @@ export async function POST(request: NextRequest) {
         
         console.log('Server render - Using relative position:', relativePosition);
 
-        // Calculate text background first to get container dimensions
-        const textBackground = calculateTextBackground(
+        // Calculate initial text background for basic dimensions (will be recalculated later)
+        const initialTextBackground = calculateTextBackground(
           slide.text || '',
           calculateFontSize(
             slide.textStyle?.fontSize || 24,
@@ -130,7 +132,91 @@ export async function POST(request: NextRequest) {
           slide.textStyle // Pass textStyle for transformation handling
         );
 
-        // Use shared transformation logic with container dimensions for exact centering
+        // Get text colors using shared logic
+        const { textColor, backgroundColor } = getTextColors(slide.textStyle);
+        const backgroundMode = slide.textStyle?.backgroundMode || 'none';
+        
+        // Apply shared text styling to Canvas context first (needed for text measurement)
+        applyCanvasTextStyle(ctx, slide.textStyle, slide.textScale || 1, resolutionScale);
+
+        // CRITICAL: Define text wrapping width ONCE for both background and text
+        const textWrappingWidth = CANVAS_WIDTH * 0.8; // This MUST be used consistently
+
+        // STEP 1: Calculate correct background dimensions using actual text wrapping
+        let finalBackgroundWidth = initialTextBackground.width;
+        let finalBackgroundHeight = initialTextBackground.height;
+
+        if (backgroundMode !== 'none' && slide.text) {
+          
+          // Re-wrap text using the EXACT same parameters that drawCanvasTextWithShadow will use
+          const wrappedLines = wrapText(ctx, slide.text, textWrappingWidth, 3);
+          
+          console.log('Background-text coordination:', {
+            originalText: slide.text,
+            textWrappingWidth,
+            wrappedLines,
+            lineCount: wrappedLines.length
+          });
+          
+          // Calculate background size based on ACTUAL wrapped text dimensions
+          let actualTextWidth;
+          let actualTextHeight;
+          
+          if (wrappedLines.length > 1) {
+            // Multi-line: Use the width that the text will actually need when wrapped
+            const longestLineWidth = Math.max(...wrappedLines.map(line => ctx.measureText(line).width));
+            actualTextWidth = longestLineWidth; // Use actual longest line after proper wrapping
+            actualTextHeight = wrappedLines.length * calculateFontSize(
+              slide.textStyle?.fontSize || 24,
+              slide.textScale || 1,
+              resolutionScale
+            ) * TEXT_STYLE_CONSTANTS.DEFAULT_LINE_HEIGHT_RATIO;
+            
+            console.log('Multi-line background (synchronized):', {
+              longestLineWidth,
+              actualTextWidth,
+              actualTextHeight,
+              linesCount: wrappedLines.length
+            });
+          } else {
+            // Single line: Use actual line width
+            const singleLineWidth = ctx.measureText(wrappedLines[0]).width;
+            const minWidth = calculateFontSize(slide.textStyle?.fontSize || 24, slide.textScale || 1, resolutionScale) * 2;
+            actualTextWidth = Math.max(singleLineWidth, minWidth);
+            actualTextHeight = calculateFontSize(
+              slide.textStyle?.fontSize || 24,
+              slide.textScale || 1,
+              resolutionScale
+            ) * TEXT_STYLE_CONSTANTS.DEFAULT_LINE_HEIGHT_RATIO;
+            
+            console.log('Single-line background (synchronized):', {
+              singleLineWidth,
+              minWidth,
+              actualTextWidth,
+              actualTextHeight
+            });
+          }
+          
+          // Use React Native padding constants
+          const paddingH = TEXT_STYLE_CONSTANTS.BACKGROUND_PADDING.HORIZONTAL * resolutionScale;
+          const paddingV = TEXT_STYLE_CONSTANTS.BACKGROUND_PADDING.VERTICAL * resolutionScale;
+          
+          const actualBgWidth = actualTextWidth + (paddingH * 2);
+          const actualBgHeight = actualTextHeight + (paddingV * 2);
+          
+          // Store the corrected dimensions
+          finalBackgroundWidth = actualBgWidth;
+          finalBackgroundHeight = actualBgHeight;
+          
+          console.log('Background recalculation:', {
+            originalBg: { width: initialTextBackground.width, height: initialTextBackground.height },
+            actualBg: { width: actualBgWidth, height: actualBgHeight },
+            textDimensions: { width: actualTextWidth, height: actualTextHeight },
+            lines: wrappedLines.length
+          });
+        }
+
+        // STEP 2: Now calculate transform using the CORRECT background dimensions
         const transform = calculateElementTransform(
           {
             x: relativePosition.x,
@@ -140,47 +226,45 @@ export async function POST(request: NextRequest) {
           },
           CANVAS_WIDTH,
           CANVAS_HEIGHT,
-          textBackground.width,
-          textBackground.height
+          finalBackgroundWidth,
+          finalBackgroundHeight
         );
 
-        console.log('Server render - Transform coordinates:', { translateX: transform.translateX, translateY: transform.translateY });
+        console.log('Server render - Transform coordinates:', { 
+          translateX: transform.translateX, 
+          translateY: transform.translateY,
+          backgroundDimensions: { width: finalBackgroundWidth, height: finalBackgroundHeight }
+        });
         console.log('Server render - Canvas dimensions:', CANVAS_WIDTH, 'x', CANVAS_HEIGHT);
 
-        // Get text colors using shared logic
-        const { textColor, backgroundColor } = getTextColors(slide.textStyle);
-        const backgroundMode = slide.textStyle?.backgroundMode || 'none';
-        
-        // Apply shared text styling to Canvas context first (needed for text measurement)
-        applyCanvasTextStyle(ctx, slide.textStyle, slide.textScale || 1, resolutionScale);
-
-        // Apply transform and draw text background if needed (must be transformed too)
+        // STEP 3: Draw background if needed
         if (backgroundMode !== 'none' && slide.text) {
           ctx.save();
           
           // Apply the same transform sequence as text for consistent background positioning
           ctx.translate(transform.translateX, transform.translateY);
-          ctx.translate(textBackground.width / 2, textBackground.height / 2);
+          ctx.translate(finalBackgroundWidth / 2, finalBackgroundHeight / 2);
           ctx.scale(transform.scaleX, transform.scaleY);
           ctx.rotate(transform.rotation * Math.PI / 180);
-          ctx.translate(-textBackground.width / 2, -textBackground.height / 2);
+          ctx.translate(-finalBackgroundWidth / 2, -finalBackgroundHeight / 2);
           
           ctx.fillStyle = backgroundColor;
           
-          // Draw rounded rectangle background at container origin
+          // Draw rounded rectangle background with correct dimensions
           const bgX = 0;
           const bgY = 0;
+          const radius = TEXT_STYLE_CONSTANTS.BACKGROUND_RADIUS * resolutionScale;
           
           ctx.beginPath();
-          ctx.moveTo(bgX + textBackground.radius, bgY);
-          ctx.lineTo(bgX + textBackground.width - textBackground.radius, bgY);
-          ctx.quadraticCurveTo(bgX + textBackground.width, bgY, bgX + textBackground.width, bgY + textBackground.radius);
-          ctx.lineTo(bgX + textBackground.width, bgY + textBackground.height - textBackground.radius);
-          ctx.quadraticCurveTo(bgX + textBackground.width, bgY + textBackground.height, bgX + textBackground.width - textBackground.radius, bgY + textBackground.height);
-          ctx.lineTo(bgX + textBackground.radius, bgY + textBackground.height);
-          ctx.quadraticCurveTo(bgX, bgY + textBackground.height, bgX, bgY + textBackground.height - textBackground.radius);
-          ctx.lineTo(bgX, bgY + textBackground.radius);
-          ctx.quadraticCurveTo(bgX, bgY, bgX + textBackground.radius, bgY);
+          ctx.moveTo(bgX + radius, bgY);
+          ctx.lineTo(bgX + finalBackgroundWidth - radius, bgY);
+          ctx.quadraticCurveTo(bgX + finalBackgroundWidth, bgY, bgX + finalBackgroundWidth, bgY + radius);
+          ctx.lineTo(bgX + finalBackgroundWidth, bgY + finalBackgroundHeight - radius);
+          ctx.quadraticCurveTo(bgX + finalBackgroundWidth, bgY + finalBackgroundHeight, bgX + finalBackgroundWidth - radius, bgY + finalBackgroundHeight);
+          ctx.lineTo(bgX + radius, bgY + finalBackgroundHeight);
+          ctx.quadraticCurveTo(bgX, bgY + finalBackgroundHeight, bgX, bgY + finalBackgroundHeight - radius);
+          ctx.lineTo(bgX, bgY + radius);
+          ctx.quadraticCurveTo(bgX, bgY, bgX + radius, bgY);
           ctx.closePath();
           ctx.fill();
           
@@ -196,9 +280,9 @@ export async function POST(request: NextRequest) {
           // We need to offset to make Canvas behave like React Native container positioning
           
           // React Native applies transforms around the element's center point
-          // Calculate container dimensions (same as React Native)
-          const containerWidth = textBackground.width;
-          const containerHeight = textBackground.height;
+          // Use the CORRECT container dimensions
+          const containerWidth = finalBackgroundWidth;
+          const containerHeight = finalBackgroundHeight;
           
           // Move to container top-left (like React Native left/top)
           ctx.translate(transform.translateX, transform.translateY);
@@ -219,7 +303,7 @@ export async function POST(request: NextRequest) {
           const offsetY = containerHeight / 2;
           
           // Use shared text drawing function with wrapping and emoji support
-          const maxTextWidth = CANVAS_WIDTH * 0.8; // Match React Native maxWidth
+          // IMPORTANT: Use the SAME textWrappingWidth that we used for background calculation
           await drawCanvasTextWithShadow(
             ctx, 
             slide.text, 
@@ -227,7 +311,7 @@ export async function POST(request: NextRequest) {
             offsetY, 
             slide.textStyle, 
             resolutionScale,
-            maxTextWidth, // Enable text wrapping
+            textWrappingWidth, // Use SAME width as background calculation
             3, // Match React Native numberOfLines={3}
             loadImage, // Pass loadImage function
             fillTextWithTwemoji // Pass emoji rendering function

@@ -142,8 +142,11 @@ export function getTextColors(textStyle?: TextStyle): {
   textColor: string;
   backgroundColor: string;
 } {
-  const textColor = textStyle?.color || '#FFFFFF';
   const backgroundMode = textStyle?.backgroundMode || 'none';
+  
+  // For white background mode, force text to be black for contrast
+  // For all other modes, use the provided color or default to white
+  const textColor = backgroundMode === 'white' ? '#000000' : (textStyle?.color || '#FFFFFF');
   
   let backgroundColor = 'transparent';
   switch (backgroundMode) {
@@ -154,7 +157,7 @@ export function getTextColors(textStyle?: TextStyle): {
       backgroundColor = 'rgba(0, 0, 0, 0.4)';
       break;
     case 'white':
-      backgroundColor = 'rgba(255, 255, 255, 0.9)';
+      backgroundColor = 'rgba(255, 255, 255, 1.0)';
       break;
   }
   
@@ -254,7 +257,9 @@ export function applyCanvasTextStyle(
   
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR;
+  // Use getTextColors to ensure proper contrast for white backgrounds
+  const { textColor } = getTextColors(textStyle);
+  ctx.fillStyle = textColor;
   
   // Try to enable better text rendering
   if ('textRendering' in ctx) {
@@ -263,7 +268,7 @@ export function applyCanvasTextStyle(
 }
 
 /**
- * Wrap text to fit within specified width, matching React Native behavior
+ * Wrap text to fit within specified width, respecting manual line breaks
  */
 export function wrapText(
   ctx: CanvasRenderingContext2D,
@@ -271,40 +276,57 @@ export function wrapText(
   maxWidth: number,
   maxLines: number = 3
 ): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const metrics = ctx.measureText(testLine);
+  // First, split by manual line breaks to respect user-entered newlines
+  const manualLines = text.split(/\n/);
+  const finalLines: string[] = [];
+  
+  for (const manualLine of manualLines) {
+    // If we've already reached maxLines, stop processing
+    if (finalLines.length >= maxLines) {
+      break;
+    }
     
-    if (metrics.width > maxWidth && currentLine !== '') {
-      // Current line would be too long, start a new line
-      lines.push(currentLine);
-      currentLine = word;
+    // If the manual line is empty, add it as is
+    if (manualLine.trim() === '') {
+      finalLines.push('');
+      continue;
+    }
+    
+    // Auto-wrap each manual line if it's too long
+    const words = manualLine.split(' ');
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
       
-      // Check if we've reached max lines
-      if (lines.length >= maxLines) {
-        // Truncate last line if it would exceed maxLines
-        if (lines.length === maxLines) {
-          const lastLine = lines[lines.length - 1];
-          const truncated = truncateTextToWidth(ctx, lastLine + '...', maxWidth);
-          lines[lines.length - 1] = truncated;
+      if (metrics.width > maxWidth && currentLine !== '') {
+        // Current line would be too long, start a new line
+        finalLines.push(currentLine);
+        currentLine = word;
+        
+        // Check if we've reached max lines
+        if (finalLines.length >= maxLines) {
+          // Truncate last line if it would exceed maxLines
+          if (finalLines.length === maxLines) {
+            const lastLine = finalLines[finalLines.length - 1];
+            const truncated = truncateTextToWidth(ctx, lastLine + '...', maxWidth);
+            finalLines[finalLines.length - 1] = truncated;
+          }
+          break;
         }
-        break;
+      } else {
+        currentLine = testLine;
       }
-    } else {
-      currentLine = testLine;
+    }
+    
+    // Add the last line from this manual line if we haven't exceeded maxLines
+    if (currentLine && finalLines.length < maxLines) {
+      finalLines.push(currentLine);
     }
   }
   
-  // Add the last line if we haven't exceeded maxLines
-  if (currentLine && lines.length < maxLines) {
-    lines.push(currentLine);
-  }
-  
-  return lines;
+  return finalLines;
 }
 
 /**
@@ -479,7 +501,9 @@ async function drawMixedContent(
         console.error('Failed to load emoji image:', error);
         // Fallback to text rendering without color (will show as shape)
         ctx.save();
-        ctx.fillStyle = textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR;
+        // Use getTextColors to ensure proper contrast for white backgrounds
+  const { textColor } = getTextColors(textStyle);
+  ctx.fillStyle = textColor;
         ctx.font = `${fontSize}px Arial, sans-serif`; // Use regular font to avoid emoji coloring
         
         // Draw a simple placeholder symbol
@@ -501,7 +525,9 @@ async function drawMixedContent(
       }
       
       // Draw main text
-      ctx.fillStyle = textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR;
+      // Use getTextColors to ensure proper contrast for white backgrounds
+  const { textColor } = getTextColors(textStyle);
+  ctx.fillStyle = textColor;
       const textWidth = ctx.measureText(segment.content).width;
       console.log(`Drawing text "${segment.content}" at: x=${currentX}, y=${y}, width=${textWidth}`);
       ctx.fillText(segment.content, currentX, y);
@@ -558,7 +584,9 @@ export async function drawCanvasTextWithShadow(
     }
     
     // Draw main text
-    ctx.fillStyle = textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR;
+    // Use getTextColors to ensure proper contrast for white backgrounds
+  const { textColor } = getTextColors(textStyle);
+  ctx.fillStyle = textColor;
     
     if (fillTextWithTwemoji) {
       await fillTextWithTwemoji(ctx, transformedText, x, y);
@@ -613,7 +641,9 @@ export async function drawCanvasTextWithShadow(
     }
     
     // Draw main text
-    ctx.fillStyle = textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR;
+    // Use getTextColors to ensure proper contrast for white backgrounds
+  const { textColor } = getTextColors(textStyle);
+  ctx.fillStyle = textColor;
     
     if (fillTextWithTwemoji) {
       await fillTextWithTwemoji(ctx, line, x, lineY);

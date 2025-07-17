@@ -88,20 +88,55 @@ export function calculateTextBackground(
   const paddingV = 8 * resolutionScale;
   const radius = 8 * resolutionScale;
   
-  // Better estimation that accounts for emojis
-  const emojiCount = (text.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
-  const regularCharCount = text.length - emojiCount;
+  // Better text width estimation that matches server-side wrapping behavior
+  const maxTextWidth = canvasWidth * 0.8; // Same as server-side textWrappingWidth
   
-  // Emojis are roughly 1.2x wider than regular characters
-  let textWidth = (regularCharCount * fontSize * 0.6) + (emojiCount * fontSize * 0.72);
+  // First, check for manual line breaks to estimate lines more accurately
+  const manualLines = text.split(/\n/);
+  const actualManualLines = Math.min(manualLines.length, maxLines);
   
-  // Ensure minimum width and respect maximum width
-  textWidth = Math.max(textWidth, fontSize * 2); // Minimum 2 character widths
-  const estimatedTextWidth = Math.min(textWidth, canvasWidth * 0.8); // Maximum 80% of canvas
+  let estimatedTextWidth;
+  let estimatedLines;
   
-  // Calculate height based on potential multiple lines (matching React Native numberOfLines={3})
+  // If there are manual line breaks, estimate based on those
+  if (manualLines.length > 1) {
+    // Calculate width based on the longest manual line
+    let maxManualLineWidth = 0;
+    
+    for (const manualLine of manualLines.slice(0, maxLines)) {
+      const emojiCount = (manualLine.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+      const regularCharCount = manualLine.length - emojiCount;
+      const lineWidth = (regularCharCount * fontSize * 0.6) + (emojiCount * fontSize * 0.72);
+      maxManualLineWidth = Math.max(maxManualLineWidth, lineWidth);
+    }
+    
+    estimatedTextWidth = Math.min(maxManualLineWidth, maxTextWidth * 0.9);
+    estimatedLines = actualManualLines;
+  } else {
+    // No manual line breaks - use automatic wrapping estimation
+    const emojiCount = (text.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+    const regularCharCount = text.length - emojiCount;
+    
+    // Emojis are roughly 1.2x wider than regular characters
+    let fullTextWidth = (regularCharCount * fontSize * 0.6) + (emojiCount * fontSize * 0.72);
+    
+    if (fullTextWidth > maxTextWidth) {
+      // Text will wrap - use wrapped width approach like server-side
+      estimatedLines = Math.ceil(fullTextWidth / maxTextWidth);
+      estimatedLines = Math.min(estimatedLines, maxLines); // Respect max lines
+      
+      // For wrapped text, background should be closer to actual text width per line
+      // Estimate average line width when wrapped
+      estimatedTextWidth = Math.min(fullTextWidth / estimatedLines, maxTextWidth * 0.9);
+    } else {
+      // Single line - use actual width
+      estimatedLines = 1;
+      estimatedTextWidth = Math.max(fullTextWidth, fontSize * 2); // Minimum 2 character widths
+    }
+  }
+  
+  // Calculate height based on estimated lines
   const lineHeight = fontSize * TEXT_STYLE_CONSTANTS.DEFAULT_LINE_HEIGHT_RATIO;
-  const estimatedLines = Math.min(Math.ceil(estimatedTextWidth / (canvasWidth * 0.8)), maxLines);
   const textHeight = estimatedLines * lineHeight;
   
   return {
@@ -121,8 +156,11 @@ export function getTextColors(textStyle?: TextStyle): {
   textColor: string;
   backgroundColor: string;
 } {
-  const textColor = textStyle?.color || '#FFFFFF';
   const backgroundMode = textStyle?.backgroundMode || 'none';
+  
+  // For white background mode, force text to be black for contrast
+  // For all other modes, use the provided color or default to white
+  const textColor = backgroundMode === 'white' ? '#000000' : (textStyle?.color || '#FFFFFF');
   
   let backgroundColor = 'transparent';
   switch (backgroundMode) {
@@ -133,7 +171,7 @@ export function getTextColors(textStyle?: TextStyle): {
       backgroundColor = 'rgba(0, 0, 0, 0.4)';
       break;
     case 'white':
-      backgroundColor = 'rgba(255, 255, 255, 0.9)';
+      backgroundColor = 'rgba(255, 255, 255, 1.0)';
       break;
   }
   
@@ -210,8 +248,11 @@ export function getReactNativeTextStyle(
     resolutionScale
   );
 
+  // Simple inline white background fix for React Native (avoid function call overhead)
+  const textColor = textStyle.backgroundMode === 'white' ? '#000000' : (textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR);
+
   return {
-    color: textStyle.color || TEXT_STYLE_CONSTANTS.DEFAULT_COLOR,
+    color: textColor,
     fontSize,
     fontWeight: textStyle.fontWeight || TEXT_STYLE_CONSTANTS.DEFAULT_FONT_WEIGHT,
     fontStyle: textStyle.fontStyle || 'normal',

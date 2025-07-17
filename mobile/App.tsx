@@ -48,6 +48,11 @@ export default function App() {
     setCurrentScreen('preview');
   };
 
+  const handleSlideshowUpdate = (updatedSlideshow: any) => {
+    console.log('📝 Updating current slideshow state with:', updatedSlideshow);
+    setCurrentSlideshow(updatedSlideshow);
+  };
+
   const handleExport = (slideshow: any) => {
     console.log('Exporting slideshow:', slideshow);
     setCurrentScreen('home');
@@ -81,6 +86,7 @@ export default function App() {
             onBack={handleBack} 
             onExport={handleExport} 
             onEditMetadata={handleEditMetadata}
+            onSlideshowUpdate={handleSlideshowUpdate}
           />
         ) : null;
       case 'metadata-edit':

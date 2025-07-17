@@ -141,22 +141,57 @@ export async function POST(request: NextRequest) {
 
         // Apply transform and draw text background if needed
         if (backgroundMode !== 'none' && slide.text) {
+          // FIXED: Check if text needs wrapping and size background accordingly
+          const maxTextWidth = CANVAS_WIDTH * 0.8;
+          const textWidth = ctx.measureText(slide.text).width;
+          const needsWrapping = textWidth > maxTextWidth;
+          
+          let actualTextWidth;
+          let actualTextHeight;
+          
+          if (needsWrapping) {
+            // Multi-line: Use container width for proper wrapping
+            actualTextWidth = Math.min(maxTextWidth, CANVAS_WIDTH * 0.6);
+            actualTextHeight = fontSize * 1.2 * 2; // Estimate 2 lines for now
+          } else {
+            // Single line: Use actual width
+            actualTextWidth = Math.max(textWidth, fontSize * 2);
+            actualTextHeight = fontSize * 1.2;
+          }
+          
+          // Use React Native padding constants (scaled for high-res canvas)
+          const paddingH = 16 * resolutionScale;
+          const paddingV = 8 * resolutionScale;
+          const radius = 8 * resolutionScale;
+          
+          const actualBgWidth = actualTextWidth + (paddingH * 2);
+          const actualBgHeight = actualTextHeight + (paddingV * 2);
+          
+          console.log('Background sizing (render-canvas):', {
+            actualTextWidth,
+            actualTextHeight,
+            actualBgWidth,
+            actualBgHeight,
+            fontSize,
+            resolutionScale
+          });
+          
           ctx.fillStyle = backgroundColor;
           
           // Draw rounded rectangle background centered on transform position
-          const bgX = transform.translateX - textBackground.width / 2;
-          const bgY = transform.translateY - textBackground.height / 2;
+          const bgX = transform.translateX - actualBgWidth / 2;
+          const bgY = transform.translateY - actualBgHeight / 2;
           
           ctx.beginPath();
-          ctx.moveTo(bgX + textBackground.radius, bgY);
-          ctx.lineTo(bgX + textBackground.width - textBackground.radius, bgY);
-          ctx.quadraticCurveTo(bgX + textBackground.width, bgY, bgX + textBackground.width, bgY + textBackground.radius);
-          ctx.lineTo(bgX + textBackground.width, bgY + textBackground.height - textBackground.radius);
-          ctx.quadraticCurveTo(bgX + textBackground.width, bgY + textBackground.height, bgX + textBackground.width - textBackground.radius, bgY + textBackground.height);
-          ctx.lineTo(bgX + textBackground.radius, bgY + textBackground.height);
-          ctx.quadraticCurveTo(bgX, bgY + textBackground.height, bgX, bgY + textBackground.height - textBackground.radius);
-          ctx.lineTo(bgX, bgY + textBackground.radius);
-          ctx.quadraticCurveTo(bgX, bgY, bgX + textBackground.radius, bgY);
+          ctx.moveTo(bgX + radius, bgY);
+          ctx.lineTo(bgX + actualBgWidth - radius, bgY);
+          ctx.quadraticCurveTo(bgX + actualBgWidth, bgY, bgX + actualBgWidth, bgY + radius);
+          ctx.lineTo(bgX + actualBgWidth, bgY + actualBgHeight - radius);
+          ctx.quadraticCurveTo(bgX + actualBgWidth, bgY + actualBgHeight, bgX + actualBgWidth - radius, bgY + actualBgHeight);
+          ctx.lineTo(bgX + radius, bgY + actualBgHeight);
+          ctx.quadraticCurveTo(bgX, bgY + actualBgHeight, bgX, bgY + actualBgHeight - radius);
+          ctx.lineTo(bgX, bgY + radius);
+          ctx.quadraticCurveTo(bgX, bgY, bgX + radius, bgY);
           ctx.closePath();
           ctx.fill();
         }

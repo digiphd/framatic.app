@@ -225,9 +225,10 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
               imageUrl: r2Url, // Use actual R2 URL
               text: slide.text,
               textStyle: slide.style,
-              textPosition: { x: 0.5, y: 0.25 }, // Default position
-              textScale: 1,
-              textRotation: 0,
+              textPosition: slide.textPosition || { x: 0.5, y: 0.25 }, // Use saved position or default
+              textScale: slide.textScale || 1,
+              textRotation: slide.textRotation || 0,
+              asset_id: slide.asset_id, // Preserve the original asset_id for saving
             };
           }),
           viralHook: slideshow.viral_hook,

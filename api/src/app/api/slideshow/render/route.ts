@@ -185,22 +185,46 @@ async function renderTextOverlay(ctx: CanvasRenderingContext2D, slide: SlideData
   ctx.translate(finalX, finalY);
   ctx.rotate((textRotation * Math.PI) / 180);
 
-  // Calculate text dimensions with React Native line height (1.2)
-  const maxWidth = CANVAS_WIDTH * 0.8;
-  const lines = wrapText(ctx, text, maxWidth);
+  // CRITICAL: Use consistent wrapping width for both background and text
+  const textWrappingWidth = CANVAS_WIDTH * 0.8;
+  const lines = wrapText(ctx, text, textWrappingWidth);
   const lineHeight = scaledFontSize * 1.2; // Match React Native lineHeight
-  console.log('Text wrapping:', { maxWidth, lines, lineHeight });
-  const textWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
-  const textHeight = lines.length * lineHeight;
+  console.log('Text wrapping:', { textWrappingWidth, lines, lineHeight });
 
-  // Draw background if specified - match React Native background logic
+  // Draw background if specified - match React Native background logic exactly
   const backgroundMode = textStyle.backgroundMode || 'none';
   if (backgroundMode !== 'none') {
-    // Match React Native padding: 16 horizontal, 8 vertical
-    const paddingH = 16;
-    const paddingV = 8;
-    const bgWidth = textWidth + paddingH * 2;
-    const bgHeight = textHeight + paddingV * 2;
+    // FIXED: Use EXACT text dimensions after wrapping
+    let actualTextWidth;
+    
+    if (lines.length > 1) {
+      // Multi-line: Use actual longest line width after proper wrapping
+      actualTextWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+    } else {
+      // Single line: Use actual width
+      actualTextWidth = Math.max(
+        ctx.measureText(lines[0]).width,
+        scaledFontSize * 2 // Minimum width
+      );
+    }
+    
+    const actualTextHeight = lines.length * lineHeight;
+    
+    // Match React Native padding constants exactly
+    const paddingH = 16 * canvasScaleFactor; // Scale padding for high-res canvas
+    const paddingV = 8 * canvasScaleFactor;
+    const bgWidth = actualTextWidth + paddingH * 2;
+    const bgHeight = actualTextHeight + paddingV * 2;
+
+    console.log('Background sizing (render.ts):', {
+      actualTextWidth,
+      actualTextHeight,
+      bgWidth,
+      bgHeight,
+      scaledFontSize,
+      lineHeight,
+      lines: lines.length
+    });
 
     // Match React Native background colors exactly
     let backgroundColor = 'transparent';
@@ -218,8 +242,8 @@ async function renderTextOverlay(ctx: CanvasRenderingContext2D, slide: SlideData
 
     ctx.fillStyle = backgroundColor;
     
-    // Match React Native borderRadius: 8
-    const borderRadius = 8;
+    // Match React Native borderRadius: 8 (scaled for canvas)
+    const borderRadius = 8 * canvasScaleFactor;
     if (borderRadius > 0) {
       // Draw rounded rectangle manually for compatibility
       const x = -bgWidth / 2;
@@ -274,25 +298,38 @@ async function renderTextOverlay(ctx: CanvasRenderingContext2D, slide: SlideData
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine + (currentLine ? ' ' : '') + word;
-    const metrics = ctx.measureText(testLine);
+  // First, split by manual line breaks to respect user-entered newlines
+  const manualLines = text.split(/\n/);
+  const finalLines: string[] = [];
+  
+  for (const manualLine of manualLines) {
+    // If the manual line is empty, add it as is
+    if (manualLine.trim() === '') {
+      finalLines.push('');
+      continue;
+    }
     
-    if (metrics.width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
+    // Auto-wrap each manual line if it's too long
+    const words = manualLine.split(' ');
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        finalLines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    // Add the last line from this manual line
+    if (currentLine) {
+      finalLines.push(currentLine);
     }
   }
   
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
+  return finalLines;
 }

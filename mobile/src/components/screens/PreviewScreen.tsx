@@ -47,6 +47,7 @@ interface Slide {
   textPosition?: { x: number; y: number };
   textScale?: number;
   textRotation?: number;
+  asset_id?: string; // Keep track of the original asset_id for saving
 }
 
 interface Slideshow {
@@ -65,9 +66,10 @@ interface PreviewScreenProps {
   onBack: () => void;
   onExport: (slideshow: Slideshow) => void;
   onEditMetadata: (slideshow: Slideshow) => void;
+  onSlideshowUpdate?: (slideshow: Slideshow) => void; // New prop to update parent state
 }
 
-export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: PreviewScreenProps) {
+export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata, onSlideshowUpdate }: PreviewScreenProps) {
   console.log('PreviewScreen received slideshow:', slideshow);
   
   const [editingSlideshow, setEditingSlideshow] = useState<Slideshow>(slideshow);
@@ -209,26 +211,119 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
     }));
   }, []);
 
+  // Save slideshow changes to database
+  const saveSlideshowChanges = useCallback(async (slideshow: any) => {
+    try {
+      console.log('🔄 Saving slideshow changes to database:', slideshow.id);
+      console.log('📝 Slide data being saved:', JSON.stringify(slideshow.slides, null, 2));
+      
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+      console.log('🌐 API URL:', apiUrl);
+      
+      if (!apiUrl) {
+        console.error('❌ EXPO_PUBLIC_API_URL environment variable is not set');
+        return;
+      }
+      
+      // Convert slides back to database format with asset_id
+      const dbSlides = slideshow.slides.map((slide: Slide, index: number) => ({
+        asset_id: slide.asset_id || `slide_${index}_${slide.id}`, // Use asset_id if available, fallback to slide identifier
+        text: slide.text,
+        position: index + 1,
+        style: slide.textStyle || {},
+        textPosition: slide.textPosition,
+        textScale: slide.textScale,
+        textRotation: slide.textRotation,
+      }));
+
+      const requestBody = {
+        slideshowId: slideshow.id,
+        slides: dbSlides,
+        title: slideshow.title,
+        caption: slideshow.caption,
+        hashtags: slideshow.hashtags,
+        viralHook: slideshow.viralHook,
+        viralScore: slideshow.viralScore,
+      };
+      
+      console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(`${apiUrl}/api/slideshow/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          // Handle HTML error responses (like 500 errors)
+          const errorText = await response.text();
+          console.error('❌ Server error (HTML response):', errorText.substring(0, 200));
+          console.error('❌ Response status:', response.status, response.statusText);
+          return;
+        }
+        console.error('❌ Failed to save slideshow changes:', errorData);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('✅ Successfully saved slideshow changes:', result.message);
+      console.log('📊 Database response:', result.slideshow);
+      
+      // Update parent component's slideshow state so it reflects the changes
+      if (onSlideshowUpdate && result.slideshow) {
+        onSlideshowUpdate(result.slideshow);
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('⏰ Request timeout - slideshow save took too long');
+      } else if (error.message === 'Network request failed') {
+        console.error('🌐 Network error - check API server and connection');
+        console.error('API URL being used:', process.env.EXPO_PUBLIC_API_URL);
+      } else {
+        console.error('💥 Error saving slideshow changes:', error);
+      }
+    }
+  }, [onSlideshowUpdate]);
+
   // Update slide text function
   const updateSlideText = useCallback((slideId: string, newText: string, style?: any, position?: { x: number; y: number }, scale?: number, rotation?: number) => {
     if (position) {
       console.log('PreviewScreen: updateSlideText called with position:', position, 'for slide:', slideId);
     }
     
-    setEditingSlideshow(prev => ({
-      ...prev,
-      slides: prev.slides.map(slide =>
-        slide.id === slideId ? { 
-          ...slide, 
-          text: newText,
-          textStyle: style ? { ...slide.textStyle, ...style } : slide.textStyle,
-          textPosition: position || slide.textPosition,
-          textScale: scale !== undefined ? scale : slide.textScale,
-          textRotation: rotation !== undefined ? rotation : slide.textRotation,
-        } : slide
-      )
-    }));
-  }, []);
+    setEditingSlideshow(prev => {
+      const updatedSlideshow = {
+        ...prev,
+        slides: prev.slides.map(slide =>
+          slide.id === slideId ? { 
+            ...slide, 
+            text: newText,
+            textStyle: style ? { ...slide.textStyle, ...style } : slide.textStyle,
+            textPosition: position || slide.textPosition,
+            textScale: scale !== undefined ? scale : slide.textScale,
+            textRotation: rotation !== undefined ? rotation : slide.textRotation,
+          } : slide
+        )
+      };
+      
+      // Save changes to database immediately
+      saveSlideshowChanges(updatedSlideshow);
+      
+      return updatedSlideshow;
+    });
+  }, [saveSlideshowChanges]);
 
   // Memoize callback functions to prevent re-renders
   const handleTextChangeForOverlay = useCallback((text: string) => {
