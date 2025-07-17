@@ -25,6 +25,11 @@ import { R2Image } from '../ui/R2Image';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const slideWidth = screenWidth - (spacing.md * 2);
+const slideHeight = Math.min(
+  slideWidth * (16/9), // TikTok aspect ratio
+  screenHeight * 0.7 // Cap at 70% of screen height for better visibility
+);
 
 interface Slide {
   id: string;
@@ -67,7 +72,7 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
   
   const [editingSlideshow, setEditingSlideshow] = useState<Slideshow>(slideshow);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [isEditMode, setIsEditMode] = useState(true); // Start in edit mode
+  // Always in edit mode - no preview mode needed
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [showTextEditor, setShowTextEditor] = useState(false);
   const [showTextEditOverlay, setShowTextEditOverlay] = useState(false);
@@ -302,7 +307,7 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
         fontWeight: 'bold',
         backgroundMode: 'none',
       },
-      textPosition: { x: screenWidth / 2, y: screenHeight * 0.5 },
+      textPosition: { x: 0.5, y: 0.25 }, // Use relative positioning
       textScale: 1,
       textRotation: 0,
     };
@@ -342,41 +347,6 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
       ]
     );
   };
-
-  const handleExport = () => {
-    Alert.alert(
-      'Export Slideshow',
-      'Choose your export format:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'TikTok Video', onPress: () => exportToTikTok() },
-        { text: 'Instagram Story', onPress: () => exportToInstagram() },
-        { text: 'Individual Slides', onPress: () => exportIndividualSlides() },
-      ]
-    );
-  };
-
-  const exportToTikTok = () => {
-    Alert.alert('Success!', 'Your slideshow has been exported for TikTok. Check your camera roll!');
-    onExport(editingSlideshow);
-  };
-
-  const exportToInstagram = () => {
-    Alert.alert('Success!', 'Your slideshow has been exported for Instagram Stories!');
-    onExport(editingSlideshow);
-  };
-
-  const exportIndividualSlides = () => {
-    Alert.alert('Success!', `All ${editingSlideshow.slides.length} slides exported to your camera roll!`);
-    onExport(editingSlideshow);
-  };
-
-  const openTextEditor = () => {
-    setSelectedTextId(currentSlide.id);
-    setShowTextEditor(true);
-  };
-
-
 
   const handleTextSave = (text: string, style: any) => {
     if (selectedTextId) {
@@ -465,7 +435,7 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <TouchableOpacity
             onPress={() => setShowTemplateSelector(true)}
             style={{
@@ -481,20 +451,6 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
             <Text style={{ fontSize: 16 }}>{currentTemplate.emoji}</Text>
             <Text style={{ color: colors.text, fontSize: 12, fontWeight: 'bold' }}>
               Template
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => setIsEditMode(!isEditMode)}
-            style={{
-              backgroundColor: isEditMode ? colors.primary : colors.glass,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-              borderRadius: borderRadius.lg,
-            }}
-          >
-            <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold' }}>
-              {isEditMode ? 'Done' : 'Edit'}
             </Text>
           </TouchableOpacity>
           
@@ -523,11 +479,12 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
         justifyContent: 'center', 
         alignItems: 'center',
         paddingHorizontal: spacing.md,
+        paddingTop: spacing.lg, // Add top padding to prevent overlap with header buttons
       }}>
         <View 
           style={{
-            width: screenWidth - (spacing.md * 2),
-            height: (screenWidth - (spacing.md * 2)) * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
+            width: slideWidth,
+            height: slideHeight,
             borderRadius: borderRadius.xl,
             overflow: 'hidden',
             backgroundColor: colors.glass,
@@ -546,11 +503,11 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
           />
 
           {/* Draggable Text Overlay */}
-          {(currentSlide.text || isEditMode) && (
+          {(currentSlide.text || true) && (
             <DraggableText
               text={currentSlide.text}
               style={currentSlide.textStyle}
-              isEditing={isEditMode}
+              isEditing={true}
               isSelected={true}
               isBeingEdited={showTextEditOverlay && selectedTextId === currentSlide.id}
               onPress={() => {
@@ -568,27 +525,11 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
               initialScale={currentSlide.textScale || 1}
               initialRotation={currentSlide.textRotation || 0}
               slideId={currentSlide.id}
-              slideWidth={screenWidth - (spacing.md * 2)}
-              slideHeight={(screenWidth - (spacing.md * 2)) * (16/9)}
+              slideWidth={slideWidth}
+              slideHeight={slideHeight}
             />
           )}
 
-          {/* Edit Text Button (when not in edit mode) */}
-          {!isEditMode && (
-            <TouchableOpacity
-              style={{
-                position: 'absolute',
-                top: spacing.md,
-                right: spacing.md,
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                padding: spacing.sm,
-                borderRadius: borderRadius.lg,
-              }}
-              onPress={() => setIsEditMode(true)}
-            >
-              <Ionicons name="create-outline" size={20} color={colors.text} />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
@@ -614,17 +555,6 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata }: P
         />
       </View>
 
-      {/* Export Button */}
-      {!isEditMode && (
-        <View style={{
-          paddingHorizontal: spacing.lg,
-          paddingBottom: 40, // Account for home indicator
-        }}>
-          <MagicButton onPress={handleExport} style={{ width: '100%' }}>
-            🚀 Export Slideshow
-          </MagicButton>
-        </View>
-      )}
 
       {/* TikTok-Style Text Editor */}
       <TikTokTextEditor

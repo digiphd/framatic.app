@@ -22,6 +22,7 @@ import { ErrorHandlers } from '../ui/ErrorAlert';
 
 const { width: screenWidth } = Dimensions.get('window');
 const tileSize = (screenWidth - 48) / 2 - 8; // 2 columns with margins
+const tileHeight = tileSize * 1.4; // Slightly shorter than full TikTok ratio for better gallery view
 
 const MVP_USER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -313,7 +314,7 @@ export function MySlideshowsScreen({ onBack, onCreateNew, onEditSlideshow }: MyS
         key={slideshow.id}
         style={{
           width: tileSize,
-          height: tileSize * (16/9), // TikTok aspect ratio 9:16 (height = width * 16/9)
+          height: tileHeight, // Better gallery view ratio
           marginBottom: spacing.md,
         }}
         activeOpacity={0.8}

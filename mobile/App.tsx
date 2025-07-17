@@ -19,10 +19,6 @@ export default function App() {
     setCurrentScreen('magic-create');
   };
 
-  const handleTemplateSelect = (template: string) => {
-    console.log('Template selected:', template);
-    // TODO: Navigate to template customization or direct creation
-  };
 
   const handleViewLibrary = () => {
     console.log('Navigating to Photo Library');
@@ -100,42 +96,8 @@ export default function App() {
         return (
           <HomeScreen
             onMagicCreate={handleMagicCreate}
-            onTemplateSelect={handleTemplateSelect}
             onViewLibrary={handleViewLibrary}
             onViewSlideshows={handleViewSlideshows}
-            // Mock data for development
-            stats={{
-          totalSlideshows: 12,
-          viralHits: 3,
-          totalViews: '2.1M',
-          librarySize: 45,
-        }}
-        recentSlideshows={[
-          {
-            id: '1',
-            title: 'Morning Coffee Routine',
-            template: 'day_in_life',
-            views: '234K',
-            viralScore: 85,
-            createdAt: '2 hours ago',
-          },
-          {
-            id: '2',
-            title: 'Hidden NYC Spots',
-            template: 'hidden_gems',
-            views: '1.2M',
-            viralScore: 92,
-            createdAt: 'Yesterday',
-          },
-          {
-            id: '3',
-            title: 'Glow Up Journey',
-            template: 'before_after',
-            views: '567K',
-            viralScore: 78,
-            createdAt: '3 days ago',
-          },
-            ]}
             // analysisProgress={75} // Uncomment to show analysis progress
           />
         );

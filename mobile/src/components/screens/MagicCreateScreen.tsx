@@ -703,7 +703,7 @@ export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps)
             textAlign: 'center',
             marginBottom: spacing.lg,
           }}>
-            Creating Magic
+            Creating...
           </Text>
 
           <Text style={{
@@ -767,7 +767,7 @@ export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps)
           fontSize: 20,
           fontWeight: 'bold',
         }}>
-          Magic Create
+          Create
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -1075,7 +1075,7 @@ export function MagicCreateScreen({ onBack, onPreview }: MagicCreateScreenProps)
                     fontSize: 18,
                     fontWeight: 'bold',
                   }}>
-                    Create Magic
+                    Create
                   </Text>
                   <Text style={{ fontSize: 20 }}>✨</Text>
                 </TouchableOpacity>

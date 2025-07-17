@@ -252,10 +252,13 @@ export function DraggableText({
       if (!isEditing) return;
       
       if (gestureState.numberActiveTouches === 1) {
-        // Single finger - drag
+        // Single finger - drag with boundary constraints
+        const constrainedX = Math.max(0, Math.min(slideWidth - 100, lastOffset.x + gestureState.dx)) - lastOffset.x;
+        const constrainedY = Math.max(0, Math.min(slideHeight - 50, lastOffset.y + gestureState.dy)) - lastOffset.y;
+        
         pan.current?.setValue({
-          x: gestureState.dx,
-          y: gestureState.dy,
+          x: constrainedX,
+          y: constrainedY,
         });
         
         // Don't update anything during drag - let animated values handle it
@@ -310,10 +313,10 @@ export function DraggableText({
       let finalRotation = rotation;
       
       if (gestureState.numberActiveTouches <= 1) {
-        // Handle drag release
+        // Handle drag release with boundary constraints
         const newOffset = {
-          x: lastOffset.x + gestureState.dx,
-          y: lastOffset.y + gestureState.dy,
+          x: Math.max(0, Math.min(slideWidth - 100, lastOffset.x + gestureState.dx)), // Keep within slide bounds
+          y: Math.max(0, Math.min(slideHeight - 50, lastOffset.y + gestureState.dy)), // Keep within slide bounds
         };
         
         setLastOffset(newOffset);
@@ -437,7 +440,7 @@ export function DraggableText({
               onPress={enterEditMode}
               style={{
                 position: 'absolute',
-                top: -40,
+                top: Math.max(-40, -position.y + 10), // Ensure button stays within slide bounds
                 left: '50%',
                 transform: [{ translateX: -25 }],
                 width: 50,
@@ -472,7 +475,7 @@ export function DraggableText({
             <View
               style={{
                 position: 'absolute',
-                top: -25,
+                top: Math.max(-25, -position.y + 5), // Ensure handle stays within slide bounds
                 right: -10,
                 width: 20,
                 height: 20,
