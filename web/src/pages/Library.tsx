@@ -18,12 +18,16 @@ import {
   Folder
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
+import { useModal } from '../hooks/useModal';
+import { PhotoDetailModal } from '../components/modals/PhotoDetailModal';
+import type { Photo } from '../types/photo';
 
 const Library: React.FC = () => {
   const { theme } = useTheme();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const photoModal = useModal<Photo>();
 
   const filters = [
     { id: 'all', label: 'All Photos', count: 247 },
@@ -32,9 +36,9 @@ const Library: React.FC = () => {
     { id: 'high-quality', label: 'High Quality', count: 89 }
   ];
 
-  const photos = [
+  const [photos, setPhotos] = useState<Photo[]>([
     {
-      id: 1,
+      id: '1',
       url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=400&fit=crop',
       filename: 'morning-coffee.jpg',
       uploadedAt: '2 hours ago',
@@ -42,10 +46,23 @@ const Library: React.FC = () => {
       emotions: ['cozy', 'authentic', 'morning'],
       tags: ['coffee', 'lifestyle', 'morning', 'routine'],
       isFavorite: true,
-      fileSize: '2.4 MB'
+      fileSize: '2.4 MB',
+      ai_analysis: {
+        emotions: ['cozy', 'authentic', 'morning'],
+        tags: ['coffee', 'lifestyle', 'morning', 'routine'],
+        content_type: 'lifestyle',
+        lighting: 'natural warm light',
+        composition: 'centered subject',
+        scene_description: 'A person enjoying their morning coffee routine',
+        best_for_templates: ['day_in_life', 'morning_routine'],
+        colors: ['warm', 'brown', 'cream'],
+        face_count: 1,
+        quality_score: 8.8,
+        viral_potential: 7.5
+      }
     },
     {
-      id: 2,
+      id: '2',
       url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&h=400&fit=crop',
       filename: 'coffee-shop-interior.jpg',
       uploadedAt: '1 day ago',
@@ -53,10 +70,23 @@ const Library: React.FC = () => {
       emotions: ['aesthetic', 'cozy', 'warm'],
       tags: ['interior', 'coffee', 'aesthetic', 'warm lighting'],
       isFavorite: false,
-      fileSize: '3.1 MB'
+      fileSize: '3.1 MB',
+      ai_analysis: {
+        emotions: ['aesthetic', 'cozy', 'warm'],
+        tags: ['interior', 'coffee', 'aesthetic', 'warm lighting'],
+        content_type: 'interior',
+        lighting: 'warm ambient lighting',
+        composition: 'wide angle shot',
+        scene_description: 'A cozy coffee shop interior with warm lighting',
+        best_for_templates: ['hidden_gems', 'aesthetic_places'],
+        colors: ['warm', 'brown', 'gold'],
+        face_count: 0,
+        quality_score: 9.1,
+        viral_potential: 8.2
+      }
     },
     {
-      id: 3,
+      id: '3',
       url: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop',
       filename: 'workspace-setup.jpg',
       uploadedAt: '2 days ago',
@@ -64,42 +94,47 @@ const Library: React.FC = () => {
       emotions: ['productive', 'clean', 'minimal'],
       tags: ['workspace', 'productivity', 'minimal', 'tech'],
       isFavorite: true,
-      fileSize: '1.8 MB'
-    },
-    {
-      id: 4,
-      url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=400&fit=crop',
-      filename: 'latte-art.jpg',
-      uploadedAt: '3 days ago',
-      qualityScore: 7.5,
-      emotions: ['artistic', 'crafted', 'detailed'],
-      tags: ['latte art', 'coffee', 'skill', 'artistic'],
-      isFavorite: false,
-      fileSize: '2.7 MB'
-    },
-    {
-      id: 5,
-      url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop',
-      filename: 'golden-hour-nature.jpg',
-      uploadedAt: '4 days ago',
-      qualityScore: 9.3,
-      emotions: ['peaceful', 'golden', 'natural'],
-      tags: ['nature', 'golden hour', 'landscape', 'peaceful'],
-      isFavorite: true,
-      fileSize: '4.2 MB'
-    },
-    {
-      id: 6,
-      url: 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=400&h=400&fit=crop',
-      filename: 'city-street-night.jpg',
-      uploadedAt: '5 days ago',
-      qualityScore: 8.0,
-      emotions: ['urban', 'night', 'vibrant'],
-      tags: ['city', 'night', 'street', 'urban life'],
-      isFavorite: false,
-      fileSize: '3.5 MB'
+      fileSize: '1.8 MB',
+      ai_analysis: {
+        emotions: ['productive', 'clean', 'minimal'],
+        tags: ['workspace', 'productivity', 'minimal', 'tech'],
+        content_type: 'workspace',
+        lighting: 'bright natural light',
+        composition: 'organized layout',
+        scene_description: 'A clean, minimal workspace setup',
+        best_for_templates: ['productivity', 'before_after'],
+        colors: ['white', 'black', 'silver'],
+        face_count: 0,
+        quality_score: 8.2,
+        viral_potential: 6.8
+      }
     }
-  ];
+  ]);
+
+  // Event handlers
+  const handlePhotoClick = (photo: Photo) => {
+    photoModal.open(photo);
+  };
+
+  const handleToggleFavorite = (photoId: string) => {
+    setPhotos(photos.map(photo => 
+      photo.id === photoId ? { ...photo, isFavorite: !photo.isFavorite } : photo
+    ));
+  };
+
+  const handleDeletePhoto = (photoId: string) => {
+    setPhotos(photos.filter(photo => photo.id !== photoId));
+  };
+
+  const handleDownloadPhoto = (photo: Photo) => {
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = photo.url;
+    link.download = photo.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -250,6 +285,7 @@ const Library: React.FC = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: index * 0.05 }}
                 whileHover={{ y: -5 }}
+                onClick={() => handlePhotoClick(photo)}
               >
                 {/* Background Image */}
                 <img 
@@ -425,6 +461,16 @@ const Library: React.FC = () => {
           </motion.button>
         </motion.div>
       )}
+
+      {/* Photo Detail Modal */}
+      <PhotoDetailModal
+        photo={photoModal.data}
+        isOpen={photoModal.isOpen}
+        onClose={photoModal.close}
+        onDelete={handleDeletePhoto}
+        onToggleFavorite={handleToggleFavorite}
+        onDownload={handleDownloadPhoto}
+      />
     </motion.div>
   );
 };

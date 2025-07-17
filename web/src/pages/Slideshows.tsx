@@ -20,12 +20,16 @@ import {
   Calendar
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
+import { useModal } from '../hooks/useModal';
+import { SlideshowEditor } from '../components/slideshow/SlideshowEditor';
+import type { Slideshow } from '../types/slideshow';
 
 const Slideshows: React.FC = () => {
   const { theme } = useTheme();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const slideshowModal = useModal<Slideshow>();
 
   const filters = [
     { id: 'all', label: 'All Slideshows', count: 47 },
@@ -35,11 +39,34 @@ const Slideshows: React.FC = () => {
     { id: 'draft', label: 'Drafts', count: 3 }
   ];
 
-  const slideshows = [
+  const slideshows: (Slideshow & { 
+    thumbnail: string; 
+    duration: string; 
+    slideCount: number; 
+    createdAt: string; 
+    viralScore: number; 
+    isViral: boolean; 
+    isFavorite: boolean; 
+    platforms: string[];
+  })[] = [
     {
-      id: 1,
+      id: '1',
       title: 'Morning Coffee Routine',
       template: 'Day in My Life',
+      slides: [
+        {
+          id: 'slide1',
+          imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&h=400&fit=crop',
+          text: 'Starting my morning right ☕',
+          textPosition: { x: 0.5, y: 0.1 },
+          textScale: 1,
+          textRotation: 0,
+        }
+      ],
+      viralHook: 'You won\'t believe what happened during my morning routine!',
+      caption: 'The secret to a perfect morning routine that changed my life',
+      hashtags: ['#morningroutine', '#coffee', '#lifestyle'],
+      estimatedViralScore: 8.5,
       thumbnail: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&h=400&fit=crop',
       duration: '45s',
       slideCount: 8,
@@ -51,9 +78,23 @@ const Slideshows: React.FC = () => {
       platforms: ['tiktok', 'instagram']
     },
     {
-      id: 2,
+      id: '2',
       title: 'Hidden Coffee Shops NYC',
       template: 'Hidden Gems',
+      slides: [
+        {
+          id: 'slide2',
+          imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&h=400&fit=crop',
+          text: 'Hidden gem in SoHo ✨',
+          textPosition: { x: 0.5, y: 0.8 },
+          textScale: 1.2,
+          textRotation: 0,
+        }
+      ],
+      viralHook: 'These hidden NYC coffee shops will blow your mind!',
+      caption: 'Secret spots only locals know about',
+      hashtags: ['#hiddengems', '#nyc', '#coffee'],
+      estimatedViralScore: 7.2,
       thumbnail: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&h=400&fit=crop',
       duration: '52s',
       slideCount: 10,
@@ -65,9 +106,23 @@ const Slideshows: React.FC = () => {
       platforms: ['tiktok']
     },
     {
-      id: 3,
+      id: '3',
       title: 'Before & After Workspace',
       template: 'Before/After',
+      slides: [
+        {
+          id: 'slide3',
+          imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&h=400&fit=crop',
+          text: 'My workspace transformation 🚀',
+          textPosition: { x: 0.5, y: 0.9 },
+          textScale: 1.1,
+          textRotation: 0,
+        }
+      ],
+      viralHook: 'This workspace transformation will inspire you!',
+      caption: 'From chaos to productivity paradise',
+      hashtags: ['#workspace', '#beforeafter', '#productivity'],
+      estimatedViralScore: 9.1,
       thumbnail: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&h=400&fit=crop',
       duration: '38s',
       slideCount: 6,
@@ -77,48 +132,6 @@ const Slideshows: React.FC = () => {
       isFavorite: true,
       status: 'published',
       platforms: ['tiktok', 'instagram', 'youtube']
-    },
-    {
-      id: 4,
-      title: 'Summer Aesthetic Vibes',
-      template: 'Photo Dump',
-      thumbnail: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&h=400&fit=crop',
-      duration: '60s',
-      slideCount: 12,
-      createdAt: '5 days ago',
-      viralScore: 6.8,
-      isViral: false,
-      isFavorite: false,
-      status: 'published',
-      platforms: ['instagram']
-    },
-    {
-      id: 5,
-      title: 'Night Photography Tips',
-      template: 'Tutorial',
-      thumbnail: 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&h=400&fit=crop',
-      duration: '72s',
-      slideCount: 15,
-      createdAt: '1 week ago',
-      viralScore: 5.9,
-      isViral: false,
-      isFavorite: false,
-      status: 'draft',
-      platforms: []
-    },
-    {
-      id: 6,
-      title: 'Quick Breakfast Ideas',
-      template: 'Things That...',
-      thumbnail: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop',
-      duration: '48s',
-      slideCount: 9,
-      createdAt: '1 week ago',
-      viralScore: 7.5,
-      isViral: false,
-      isFavorite: true,
-      status: 'published',
-      platforms: ['tiktok', 'instagram']
     }
   ];
 
@@ -145,6 +158,34 @@ const Slideshows: React.FC = () => {
       case 'youtube': return '📺';
       default: return '🔗';
     }
+  };
+
+  const handleSlideshowClick = (slideshow: any) => {
+    // Convert the extended slideshow object to base Slideshow type
+    const baseSlidshow: Slideshow = {
+      id: slideshow.id,
+      title: slideshow.title,
+      template: slideshow.template,
+      slides: slideshow.slides,
+      viralHook: slideshow.viralHook,
+      caption: slideshow.caption,
+      hashtags: slideshow.hashtags,
+      estimatedViralScore: slideshow.estimatedViralScore,
+      status: slideshow.status,
+      platforms: slideshow.platforms
+    };
+    slideshowModal.open(baseSlidshow);
+  };
+
+  const handleSlideshowSave = (updatedSlideshow: Slideshow) => {
+    // Handle slideshow save logic here
+    console.log('Saving slideshow:', updatedSlideshow);
+    slideshowModal.close();
+  };
+
+  const handleSlideshowExport = (slideshow: Slideshow) => {
+    // Handle slideshow export logic here
+    console.log('Exporting slideshow:', slideshow);
   };
 
   return (
@@ -269,6 +310,7 @@ const Slideshows: React.FC = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: index * 0.05 }}
                 whileHover={{ y: -5 }}
+                onClick={() => handleSlideshowClick(slideshow)}
               >
                 {/* Background Image */}
                 <img 
@@ -392,6 +434,8 @@ const Slideshows: React.FC = () => {
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: index * 0.05 }}
+                onClick={() => handleSlideshowClick(slideshow)}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="flex items-center space-x-4">
                   {/* Thumbnail */}
@@ -517,6 +561,15 @@ const Slideshows: React.FC = () => {
           </motion.button>
         </motion.div>
       )}
+
+      {/* Slideshow Editor Modal */}
+      <SlideshowEditor
+        slideshow={slideshowModal.data}
+        isOpen={slideshowModal.isOpen}
+        onClose={slideshowModal.close}
+        onSave={handleSlideshowSave}
+        onExport={handleSlideshowExport}
+      />
     </motion.div>
   );
 };
