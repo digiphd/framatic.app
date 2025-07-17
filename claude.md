@@ -229,45 +229,152 @@ TikTok's algorithm prioritizes content based on user interactions and preference
 
 ---
 
-## Database Schema (Updated with R2 Storage)
+## Database Schema (Updated for Launch Roadmap)
 
 ### Core Tables
 
-#### Users
+#### Users (Supabase Auth Integration)
 ```sql
 users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Supabase auth fields
+  email TEXT UNIQUE NOT NULL,
+  phone TEXT UNIQUE,
+  encrypted_password TEXT,
+  email_confirmed_at TIMESTAMP,
+  phone_confirmed_at TIMESTAMP,
+  
+  -- Social login fields
   tiktok_id TEXT UNIQUE,
   facebook_id TEXT UNIQUE,
+  
+  -- Profile fields
   username TEXT UNIQUE,
   display_name TEXT,
   avatar_url TEXT,
-  subscription_tier TEXT DEFAULT 'free',
+  bio TEXT,
+  
+  -- User context for smarter creation
+  user_context JSONB DEFAULT '{}', -- Preferences, interests, content style
+  content_style_profile JSONB DEFAULT '{}', -- AI-learned user preferences
+  
+  -- Subscription and usage
+  subscription_tier TEXT DEFAULT 'free', -- 'free', 'creator_pro', 'viral_studio'
+  subscription_status TEXT DEFAULT 'active',
+  subscription_period_start TIMESTAMP,
+  subscription_period_end TIMESTAMP,
+  stripe_customer_id TEXT,
+  
+  -- Usage tracking
   library_photo_count INTEGER DEFAULT 0,
   total_slideshows_created INTEGER DEFAULT 0,
   viral_success_count INTEGER DEFAULT 0,
+  monthly_slideshow_count INTEGER DEFAULT 0,
+  last_slideshow_reset TIMESTAMP DEFAULT NOW(),
+  
+  -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes for performance
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_subscription_tier ON users(subscription_tier);
+CREATE INDEX idx_users_context ON users USING GIN(user_context);
 ```
 
-#### Slideshows
+#### Organizations (For team features)
+```sql
+organizations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  description TEXT,
+  avatar_url TEXT,
+  owner_id UUID REFERENCES users(id),
+  subscription_tier TEXT DEFAULT 'free',
+  settings JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+organization_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id),
+  user_id UUID REFERENCES users(id),
+  role TEXT DEFAULT 'member', -- 'owner', 'admin', 'member'
+  permissions JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(organization_id, user_id)
+);
+```
+
+#### Slideshows (Enhanced for Bulk & Website)
 ```sql
 slideshows (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id),
+  organization_id UUID REFERENCES organizations(id), -- Optional for team slideshows
+  
+  -- Basic slideshow data
   title TEXT NOT NULL,
   template_used TEXT NOT NULL,
   generation_prompt TEXT,
   slides JSONB NOT NULL, -- Array of slide objects with R2 URLs
+  
+  -- AI-generated content
   viral_hook TEXT,
   generated_caption TEXT,
   hashtags TEXT[],
   estimated_viral_score FLOAT,
+  
+  -- Bulk creation support
+  is_bulk_generated BOOLEAN DEFAULT FALSE,
+  bulk_batch_id UUID, -- Groups slideshows created in same bulk operation
+  bulk_theme TEXT, -- Theme for bulk-generated slideshows
+  bulk_narrative TEXT, -- Narrative context for bulk creation
+  
+  -- Performance and analytics
   actual_performance JSONB, -- Views, likes, shares if shared
   creation_time_seconds FLOAT,
-  is_bulk_generated BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT NOW()
+  export_count INTEGER DEFAULT 0,
+  last_exported_at TIMESTAMP,
+  
+  -- Platform and sharing
+  platform_optimized_for TEXT DEFAULT 'tiktok', -- 'tiktok', 'instagram', 'both'
+  export_format TEXT DEFAULT 'mp4', -- 'mp4', 'gif', 'images'
+  is_public BOOLEAN DEFAULT FALSE,
+  share_token TEXT UNIQUE, -- For public sharing
+  
+  -- Status and metadata
+  status TEXT DEFAULT 'draft', -- 'draft', 'ready', 'exported', 'published'
+  tags TEXT[],
+  notes TEXT,
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_slideshows_user_id ON slideshows(user_id);
+CREATE INDEX idx_slideshows_bulk_batch ON slideshows(bulk_batch_id);
+CREATE INDEX idx_slideshows_status ON slideshows(status);
+CREATE INDEX idx_slideshows_created_at ON slideshows(created_at DESC);
+```
+
+#### Slideshow Collections (For bulk organization)
+```sql
+slideshow_collections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  organization_id UUID REFERENCES organizations(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  slideshow_ids UUID[], -- Array of slideshow IDs
+  collection_type TEXT DEFAULT 'manual', -- 'manual', 'bulk_generated', 'auto_curated'
+  export_settings JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
@@ -296,7 +403,7 @@ CREATE INDEX idx_asset_viral_score ON asset_library(viral_potential_score DESC);
 CREATE INDEX idx_asset_ai_analysis ON asset_library USING GIN(ai_analysis);
 ```
 
-#### Viral Templates
+#### Viral Templates (Enhanced)
 ```sql
 viral_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -308,43 +415,192 @@ viral_templates (
   target_emotions TEXT[], -- ['curiosity', 'shock', 'relatability']
   optimal_photo_types TEXT[], -- ['candid', 'before_after', 'lifestyle']
   premium_only BOOLEAN DEFAULT FALSE,
-  is_active BOOLEAN DEFAULT TRUE
+  is_active BOOLEAN DEFAULT TRUE,
+  
+  -- Enhanced template features
+  template_category TEXT DEFAULT 'general', -- 'lifestyle', 'business', 'travel', etc.
+  visual_style JSONB DEFAULT '{}', -- Colors, fonts, animations
+  bulk_suitable BOOLEAN DEFAULT TRUE,
+  chatbot_compatible BOOLEAN DEFAULT TRUE,
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### Subscriptions & Payments
+```sql
+subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  organization_id UUID REFERENCES organizations(id),
+  
+  -- Stripe integration
+  stripe_subscription_id TEXT UNIQUE,
+  stripe_customer_id TEXT,
+  stripe_price_id TEXT,
+  
+  -- Subscription details
+  tier TEXT NOT NULL, -- 'free', 'creator_pro', 'viral_studio'
+  status TEXT NOT NULL, -- 'active', 'canceled', 'past_due', 'unpaid'
+  current_period_start TIMESTAMP,
+  current_period_end TIMESTAMP,
+  cancel_at_period_end BOOLEAN DEFAULT FALSE,
+  
+  -- Usage tracking
+  usage_limits JSONB DEFAULT '{}', -- Monthly limits for each feature
+  current_usage JSONB DEFAULT '{}', -- Current month usage
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+payment_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  subscription_id UUID REFERENCES subscriptions(id),
+  stripe_payment_intent_id TEXT,
+  amount INTEGER, -- In cents
+  currency TEXT DEFAULT 'usd',
+  status TEXT, -- 'succeeded', 'failed', 'pending'
+  description TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### Bulk Operations
+```sql
+bulk_operations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  operation_type TEXT NOT NULL, -- 'slideshow_creation', 'export', 'analysis'
+  
+  -- Operation details
+  input_data JSONB, -- Original request data
+  configuration JSONB, -- Operation settings
+  total_items INTEGER,
+  processed_items INTEGER DEFAULT 0,
+  failed_items INTEGER DEFAULT 0,
+  
+  -- Status and results
+  status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+  result_data JSONB, -- Output data and references
+  error_details JSONB,
+  
+  -- Timing
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  estimated_completion_time TIMESTAMP,
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
 ---
 
-## API Endpoints (Updated for Async Processing)
+## API Endpoints (Updated for Launch Roadmap)
 
-### Authentication (Social Only)
-- `POST /api/auth/tiktok` - TikTok OAuth login
-- `POST /api/auth/facebook` - Facebook OAuth login
-- `GET /api/auth/me` - Get current user profile
+### Authentication (Supabase Integration)
+- `POST /api/auth/signup` - Email/password signup
+- `POST /api/auth/login` - Email/password login
+- `POST /api/auth/social/tiktok` - TikTok OAuth login
+- `POST /api/auth/social/facebook` - Facebook OAuth login
+- `GET /api/auth/me` - Get current user profile with context
 - `POST /api/auth/logout` - User logout
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/forgot-password` - Password reset
+- `POST /api/auth/reset-password` - Complete password reset
+
+### User & Organization Management
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/profile` - Update user profile
+- `POST /api/users/context` - Update user context for smarter creation
+- `GET /api/users/usage` - Get current usage statistics
+- `POST /api/organizations` - Create organization
+- `GET /api/organizations` - List user organizations
+- `PUT /api/organizations/:id` - Update organization
+- `DELETE /api/organizations/:id` - Delete organization
+- `POST /api/organizations/:id/members` - Add organization member
+- `DELETE /api/organizations/:id/members/:userId` - Remove member
 
 ### Async Asset Management
 - `POST /api/assets/upload` - Upload photos to R2 + queue analysis
+- `POST /api/assets/bulk-upload` - Upload multiple photos with batch analysis
 - `POST /api/assets/analyze-batch` - Process 5-10 images per serverless call
 - `GET /api/assets/status/:userId` - Check analysis progress
 - `GET /api/assets/library` - Get analyzed assets with JSONB queries
+- `DELETE /api/assets/:id` - Delete asset from library
+- `PUT /api/assets/:id` - Update asset metadata
 
-### Lightning Creation (Using Pre-analyzed Assets)
+### Lightning Creation (Context-Aware)
 - `POST /api/ai/voice-to-text` - OpenRouter → Whisper for voice processing
-- `POST /api/ai/generate-slideshow` - Fast creation from analyzed assets
+- `POST /api/ai/generate-slideshow` - Fast creation with user context
 - `POST /api/ai/magic-create` - One-tap creation with pre-computed analysis
 - `GET /api/ai/viral-score` - Real-time viral potential scoring
+- `POST /api/ai/enhance-context` - Improve user context from creation history
 
 ### Bulk Processing (Premium)
-- `POST /api/assets/bulk-upload` - Upload up to 100 photos with batch analysis
-- `POST /api/ai/bulk-generate` - Create multiple slideshows from library
-- `POST /api/ai/schedule-content` - Auto-schedule for optimal posting
-- `GET /api/bulk/status/:jobId` - Check bulk processing status
+- `POST /api/bulk/create-slideshows` - Create multiple slideshows from library
+- `POST /api/bulk/collections` - Create slideshow collections
+- `GET /api/bulk/collections` - List collections
+- `PUT /api/bulk/collections/:id` - Update collection
+- `DELETE /api/bulk/collections/:id` - Delete collection
+- `POST /api/bulk/export` - Bulk export slideshows
+- `GET /api/bulk/operations/:id` - Check bulk operation status
+- `POST /api/bulk/schedule-content` - Auto-schedule for optimal posting
 
-### Export & Performance
-- `POST /api/slideshow/export` - Export TikTok-ready video
+### Slideshow Management
+- `GET /api/slideshows` - List user slideshows with filters
+- `GET /api/slideshows/:id` - Get specific slideshow
+- `PUT /api/slideshows/:id` - Update slideshow
+- `DELETE /api/slideshows/:id` - Delete slideshow
+- `POST /api/slideshows/:id/duplicate` - Duplicate slideshow
+- `POST /api/slideshows/:id/export` - Export slideshow to video
+- `GET /api/slideshows/:id/share` - Get public share link
+- `POST /api/slideshows/:id/performance` - Update with actual social metrics
+
+### Templates & Customization
+- `GET /api/templates` - List available templates
+- `GET /api/templates/:id` - Get template details
+- `POST /api/templates/custom` - Create custom template (premium)
+- `PUT /api/templates/custom/:id` - Update custom template
+- `DELETE /api/templates/custom/:id` - Delete custom template
+
+### Subscription & Payments
+- `GET /api/subscriptions/plans` - List available plans
+- `GET /api/subscriptions/current` - Get current subscription
+- `POST /api/subscriptions/create` - Create new subscription
+- `PUT /api/subscriptions/update` - Update subscription
+- `POST /api/subscriptions/cancel` - Cancel subscription
+- `GET /api/subscriptions/usage` - Get usage statistics
+- `POST /api/payments/create-intent` - Create payment intent
+- `GET /api/payments/history` - Get payment history
+
+### Analytics & Performance
+- `GET /api/analytics/dashboard` - Get user dashboard analytics
 - `GET /api/analytics/viral-performance` - Track viral success rates
 - `GET /api/analytics/template-effectiveness` - Real template performance
-- `POST /api/slideshows/:id/performance` - Update with actual social metrics
+- `GET /api/analytics/usage-trends` - Usage trends over time
+- `GET /api/analytics/export-stats` - Export statistics
+
+### Website Integration
+- `GET /api/website/dashboard` - Get website dashboard data
+- `POST /api/website/quick-create` - Quick AI create for website
+- `GET /api/website/recent-slideshows` - Recent slideshows for website
+- `POST /api/website/bulk-download` - Download multiple slideshows
+
+### Chatbot & Agent Integration
+- `POST /api/agents/conversation` - Create slideshow via conversation
+- `POST /api/agents/bulk-narrative` - Create narrative-based bulk slideshows
+- `GET /api/agents/context` - Get conversation context
+- `POST /api/agents/webhook` - Webhook for external integrations (n8n)
+
+### System & Health
+- `GET /api/health` - API health check
+- `GET /api/system/templates` - System template updates
+- `POST /api/system/feedback` - User feedback submission
+- `GET /api/system/status` - System status and maintenance
 
 ---
 
