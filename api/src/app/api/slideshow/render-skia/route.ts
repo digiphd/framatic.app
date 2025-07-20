@@ -27,7 +27,7 @@ interface SlideData {
     fontSize?: number;
     fontWeight?: string;
     backgroundColor?: string;
-    backgroundMode?: 'none' | 'half' | 'full' | 'white';
+    backgroundMode?: 'none' | 'half' | 'full' | 'white' | 'per_line';
   };
   textPosition?: { x: number; y: number };
   textScale?: number;
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         ctx.drawImage(backgroundImage, drawX, drawY, drawWidth, drawHeight);
 
         // Calculate resolution scale using shared logic
-        const resolutionScale = calculateResolutionScale(CANVAS_WIDTH);
+        const resolutionScale = calculateResolutionScale(CANVAS_WIDTH, 375); // 375 is standard mobile width
 
         // Mobile app now sends consistent relative coordinates (0-1 range)
         const relativePosition = slide.textPosition || { x: 0.5, y: 0.25 };
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
           CANVAS_WIDTH,
           resolutionScale,
           ctx, // Pass context for accurate text measurement
-          3, // Match React Native numberOfLines={3}
+          0, // No line limit - allow full text
           slide.textStyle // Pass textStyle for transformation handling
         );
 
@@ -140,16 +140,16 @@ export async function POST(request: NextRequest) {
         applyCanvasTextStyle(ctx, slide.textStyle, slide.textScale || 1, resolutionScale);
 
         // CRITICAL: Define text wrapping width ONCE for both background and text
-        const textWrappingWidth = CANVAS_WIDTH * 0.8; // This MUST be used consistently
+        const textWrappingWidth = CANVAS_WIDTH * 0.6; // This MUST be used consistently
 
         // STEP 1: Calculate correct background dimensions using actual text wrapping
         let finalBackgroundWidth = initialTextBackground.width;
         let finalBackgroundHeight = initialTextBackground.height;
 
-        if (backgroundMode !== 'none' && slide.text) {
+        if (backgroundMode !== 'none' && backgroundMode !== 'per_line' && slide.text) {
           
           // Re-wrap text using the EXACT same parameters that drawCanvasTextWithShadow will use
-          const wrappedLines = wrapText(ctx, slide.text, textWrappingWidth, 3);
+          const wrappedLines = wrapText(ctx, slide.text, textWrappingWidth, 0);
           
           console.log('Background-text coordination:', {
             originalText: slide.text,
@@ -237,8 +237,8 @@ export async function POST(request: NextRequest) {
         });
         console.log('Server render - Canvas dimensions:', CANVAS_WIDTH, 'x', CANVAS_HEIGHT);
 
-        // STEP 3: Draw background if needed
-        if (backgroundMode !== 'none' && slide.text) {
+        // STEP 3: Draw background if needed (skip for per_line mode - handled by drawCanvasTextWithShadow)
+        if (backgroundMode !== 'none' && backgroundMode !== 'per_line' && slide.text) {
           ctx.save();
           
           // Apply the same transform sequence as text for consistent background positioning
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
             slide.textStyle, 
             resolutionScale,
             textWrappingWidth, // Use SAME width as background calculation
-            3, // Match React Native numberOfLines={3}
+            0, // No line limit - allow full text
             loadImage, // Pass loadImage function
             fillTextWithTwemoji // Pass emoji rendering function
           );

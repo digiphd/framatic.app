@@ -245,48 +245,27 @@ export function TemplateCard({
   );
 }
 
-// Preset template cards based on claude.md research data
+// Preset template cards based on unified viral templates
 export const ViralTemplates = {
-  hiddenGems: {
-    name: 'hidden_gems',
-    viralRate: 0.89,
-    avgViews: '2.3M',
-    bestFor: ['travel', 'lifestyle', 'secrets'],
-    description: 'Perfect for showcasing discoveries and hidden spots',
+  minimalistViral: {
+    name: 'minimalist_viral',
+    viralRate: 0.92,
+    avgViews: '2.8M',
+    bestFor: ['authentic', 'lifestyle', 'photo_dumps'],
+    description: 'Clean white text with shadow - perfect for authentic moments',
   },
-  beforeAfter: {
-    name: 'before_after',
-    viralRate: 0.84,
-    avgViews: '1.8M',
-    bestFor: ['transformations', 'progress'],
-    description: 'Great for showing change and improvement over time',
+  storyMode: {
+    name: 'story_mode',
+    viralRate: 0.88,
+    avgViews: '2.2M',
+    bestFor: ['storytelling', 'testimonials', 'advice'],
+    description: 'Semi-transparent background for perfect readability',
   },
-  thingsThat: {
-    name: 'things_that',
-    viralRate: 0.82,
-    avgViews: '1.5M',
-    bestFor: ['lists', 'countdowns', 'facts'],
-    description: 'List-based content that drives engagement',
-  },
-  povYoure: {
-    name: 'pov_youre',
-    viralRate: 0.78,
-    avgViews: '1.2M',
-    bestFor: ['relatable scenarios'],
-    description: 'Relatable scenarios that connect with viewers',
-  },
-  photoDump: {
-    name: 'photo_dump',
-    viralRate: 0.75,
-    avgViews: '900K',
-    bestFor: ['authentic moments'],
-    description: 'Casual, authentic photo collections',
-  },
-  controversialTake: {
-    name: 'controversial_take',
-    viralRate: 0.71,
-    avgViews: '850K',
-    bestFor: ['opinion content'],
-    description: 'Opinion-based content that sparks discussion',
+  popOff: {
+    name: 'pop_off',
+    viralRate: 0.85,
+    avgViews: '1.9M',
+    bestFor: ['opinions', 'controversy', 'bold_statements'],
+    description: 'Bold white background for maximum impact statements',
   },
 } as const;

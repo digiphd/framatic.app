@@ -26,7 +26,7 @@ export interface TextStyle {
   textTransform?: string;
   letterSpacing?: number;
   backgroundColor?: string;
-  backgroundMode?: 'none' | 'half' | 'full' | 'white';
+  backgroundMode?: 'none' | 'half' | 'full' | 'white' | 'per_line';
 }
 
 export interface SlideRenderConfig {
@@ -88,51 +88,37 @@ export function calculateTextBackground(
   const paddingV = 8 * resolutionScale;
   const radius = 8 * resolutionScale;
   
-  // Better text width estimation that matches server-side wrapping behavior
-  const maxTextWidth = canvasWidth * 0.8; // Same as server-side textWrappingWidth
+  // Match API width calculation exactly (60% of canvas width)
+  const maxTextWidth = canvasWidth * 0.6;
   
-  // First, check for manual line breaks to estimate lines more accurately
-  const manualLines = text.split(/\n/);
-  const actualManualLines = Math.min(manualLines.length, maxLines);
+  // Simplified width calculation to match API behavior
+  // The text container should be sized to the max width for consistent wrapping
+  const emojiCount = (text.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+  const regularCharCount = text.length - emojiCount;
+  
+  // Calculate actual text width for line estimation
+  const fullTextWidth = (regularCharCount * fontSize * 0.6) + (emojiCount * fontSize * 0.72);
   
   let estimatedTextWidth;
   let estimatedLines;
   
-  // If there are manual line breaks, estimate based on those
+  // Check for manual line breaks first
+  const manualLines = text.split(/\n/);
   if (manualLines.length > 1) {
-    // Calculate width based on the longest manual line
-    let maxManualLineWidth = 0;
-    
-    for (const manualLine of manualLines.slice(0, maxLines)) {
-      const emojiCount = (manualLine.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
-      const regularCharCount = manualLine.length - emojiCount;
-      const lineWidth = (regularCharCount * fontSize * 0.6) + (emojiCount * fontSize * 0.72);
-      maxManualLineWidth = Math.max(maxManualLineWidth, lineWidth);
-    }
-    
-    estimatedTextWidth = Math.min(maxManualLineWidth, maxTextWidth * 0.9);
-    estimatedLines = actualManualLines;
+    estimatedLines = Math.min(manualLines.length, maxLines || 999);
+    // For manual breaks, use the max width to ensure consistency
+    estimatedTextWidth = maxTextWidth;
+  } else if (fullTextWidth > maxTextWidth) {
+    // Text will wrap automatically
+    estimatedLines = Math.ceil(fullTextWidth / maxTextWidth);
+    estimatedLines = Math.min(estimatedLines, maxLines || 999);
+    // Use max width for wrapped text to match API behavior
+    estimatedTextWidth = maxTextWidth;
   } else {
-    // No manual line breaks - use automatic wrapping estimation
-    const emojiCount = (text.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
-    const regularCharCount = text.length - emojiCount;
-    
-    // Emojis are roughly 1.2x wider than regular characters
-    let fullTextWidth = (regularCharCount * fontSize * 0.6) + (emojiCount * fontSize * 0.72);
-    
-    if (fullTextWidth > maxTextWidth) {
-      // Text will wrap - use wrapped width approach like server-side
-      estimatedLines = Math.ceil(fullTextWidth / maxTextWidth);
-      estimatedLines = Math.min(estimatedLines, maxLines); // Respect max lines
-      
-      // For wrapped text, background should be closer to actual text width per line
-      // Estimate average line width when wrapped
-      estimatedTextWidth = Math.min(fullTextWidth / estimatedLines, maxTextWidth * 0.9);
-    } else {
-      // Single line - use actual width
-      estimatedLines = 1;
-      estimatedTextWidth = Math.max(fullTextWidth, fontSize * 2); // Minimum 2 character widths
-    }
+    // Single line that fits
+    estimatedLines = 1;
+    // For short text, still constrain to reasonable width
+    estimatedTextWidth = Math.min(Math.max(fullTextWidth, fontSize * 3), maxTextWidth);
   }
   
   // Calculate height based on estimated lines
@@ -158,20 +144,28 @@ export function getTextColors(textStyle?: TextStyle): {
 } {
   const backgroundMode = textStyle?.backgroundMode || 'none';
   
-  // For white background mode, force text to be black for contrast
-  // For all other modes, use the provided color or default to white
-  const textColor = backgroundMode === 'white' ? '#000000' : (textStyle?.color || '#FFFFFF');
-  
+  // Use provided colors from textStyle, with smart defaults based on background
   let backgroundColor = 'transparent';
+  let textColor = textStyle?.color || '#FFFFFF';
+  
   switch (backgroundMode) {
     case 'full':
       backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      textColor = textStyle?.color || '#FFFFFF';
       break;
     case 'half':
       backgroundColor = 'rgba(0, 0, 0, 0.4)';
+      textColor = textStyle?.color || '#FFFFFF';
       break;
     case 'white':
       backgroundColor = 'rgba(255, 255, 255, 1.0)';
+      textColor = textStyle?.color || '#000000'; // Default to black for white backgrounds
+      break;
+    case 'per_line':
+      // Use the backgroundColor specified in textStyle for per_line mode
+      backgroundColor = textStyle?.backgroundColor || 'rgba(255, 255, 255, 1.0)';
+      // Use the text color specified in textStyle
+      textColor = textStyle?.color || '#000000';
       break;
   }
   
@@ -223,9 +217,9 @@ export const TEXT_STYLE_CONSTANTS = {
   DEFAULT_LINE_HEIGHT_RATIO: 1.2,
   TEXT_SHADOW: {
     COLOR: 'rgba(0, 0, 0, 0.8)',
-    OFFSET_X: 1,
-    OFFSET_Y: 1,
-    BLUR_RADIUS: 2,
+    OFFSET_X: 2,
+    OFFSET_Y: 2,
+    BLUR_RADIUS: 3,
   },
   BACKGROUND_PADDING: {
     HORIZONTAL: 16,
@@ -240,7 +234,8 @@ export const TEXT_STYLE_CONSTANTS = {
 export function getReactNativeTextStyle(
   textStyle: TextStyle = {},
   textScale: number = 1,
-  resolutionScale: number = 1
+  resolutionScale: number = 1,
+  maxWidth?: number
 ): any {
   const fontSize = calculateFontSize(
     textStyle.fontSize || TEXT_STYLE_CONSTANTS.DEFAULT_FONT_SIZE,
@@ -259,13 +254,12 @@ export function getReactNativeTextStyle(
     textTransform: textStyle.textTransform || 'none',
     letterSpacing: textStyle.letterSpacing || 0,
     textAlign: 'center',
-    textShadowColor: textStyle.backgroundMode === 'white' ? 'transparent' : TEXT_STYLE_CONSTANTS.TEXT_SHADOW.COLOR,
-    textShadowOffset: { 
-      width: TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_X * resolutionScale, 
-      height: TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_Y * resolutionScale 
-    },
-    textShadowRadius: textStyle.backgroundMode === 'white' ? 0 : TEXT_STYLE_CONSTANTS.TEXT_SHADOW.BLUR_RADIUS * resolutionScale,
+    // No shadow needed - OutlinedText component handles the outline
+    textShadowColor: 'transparent',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 0,
     lineHeight: fontSize * TEXT_STYLE_CONSTANTS.DEFAULT_LINE_HEIGHT_RATIO,
+    maxWidth: maxWidth, // Add maxWidth constraint to match API behavior
   };
 }
 
@@ -279,8 +273,8 @@ export function getReactNativeBackgroundStyle(
   const { backgroundColor } = getTextColors(textStyle);
   const backgroundMode = textStyle.backgroundMode || 'none';
 
-  if (backgroundMode === 'none') {
-    return {};
+  if (backgroundMode === 'none' || backgroundMode === 'per_line') {
+    return {}; // No background for per_line mode - PerLineText component handles it
   }
 
   return {

@@ -84,153 +84,114 @@ async function generateSmartTemplateSelection(options: {
 
   const templates = [
     {
-      id: 'question_hook',
-      name: 'Question Hook',
-      description: 'Provocative questions that demand answers',
+      id: 'minimalist_viral',
+      name: 'Minimalist Viral',
+      description: 'Clean white text with shadow - perfect for authentic moments',
       viral_rate: 92,
-      optimal_for: ['questions', 'curiosity', 'engagement', 'discussions'],
-      emotions: ['curious', 'engaging', 'provocative'],
-      content_types: ['educational', 'discussion', 'advice'],
-      content_progression: ['hook_question', 'build_intrigue', 'reveal_answer', 'call_to_action'],
+      optimal_for: ['authentic', 'lifestyle', 'photo_dumps', 'candid'],
+      emotions: ['authentic', 'relatable', 'curiosity'],
+      content_types: ['lifestyle', 'authentic', 'casual'],
+      content_progression: ['hook_statement', 'build_context', 'reveal_moment', 'call_to_action'],
       writing_style_prompts: {
-        hook: 'Start with a provocative question that makes viewers stop scrolling',
-        build: 'Build intrigue with follow-up questions or partial reveals',
-        reveal: 'Provide the answer or insight that satisfies curiosity',
-        conclusion: 'End with a question to encourage engagement'
+        hook: 'Start with a relatable POV or authentic moment',
+        build: 'Build context about the situation or feeling',
+        reveal: 'Share the genuine insight or realization',
+        conclusion: 'Connect with audience through shared experience'
       },
       narrative_structure: {
-        slide_1: { role: 'hook', style: 'provocative_question', viral_pattern: 'curiosity_gap' },
-        slide_2: { role: 'build', style: 'follow_up_question', viral_pattern: 'increased_intrigue' },
-        slide_3: { role: 'reveal', style: 'answer_reveal', viral_pattern: 'satisfaction' },
-        slide_4: { role: 'conclusion', style: 'engagement_question', viral_pattern: 'call_to_action' }
+        slide_1: { role: 'hook', style: 'authentic_moment', viral_pattern: 'relatability' },
+        slide_2: { role: 'build', style: 'context_building', viral_pattern: 'connection' },
+        slide_3: { role: 'reveal', style: 'insight_sharing', viral_pattern: 'value_delivery' },
+        slide_4: { role: 'conclusion', style: 'community_building', viral_pattern: 'engagement' }
       },
       textStyle: {
-        fontSize: 28,
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#FFFFFF',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backgroundMode: 'full',
+        backgroundColor: 'transparent',
+        backgroundMode: 'none',
         letterSpacing: 0.5,
+        textAlign: 'center',
+      },
+      positioning: {
+        x: 0.5,
+        y: 0.3,
+        scale: 1.0,
+        rotation: 0
       }
     },
     {
-      id: 'controversial_take',
-      name: 'Controversial',
-      description: 'Bold statements that spark debate',
+      id: 'story_mode',
+      name: 'Story Mode',
+      description: 'Semi-transparent background for perfect readability',
       viral_rate: 88,
-      optimal_for: ['opinions', 'debates', 'controversial', 'discussion'],
-      emotions: ['provocative', 'engaging', 'polarizing'],
-      content_types: ['opinion', 'discussion', 'debate'],
-      content_progression: ['bold_statement', 'support_argument', 'address_objections', 'defend_position'],
+      optimal_for: ['storytelling', 'testimonials', 'advice', 'inspiration'],
+      emotions: ['inspiring', 'community', 'relatability'],
+      content_types: ['story', 'testimonial', 'advice'],
+      content_progression: ['story_hook', 'build_tension', 'reveal_lesson', 'inspire_action'],
       writing_style_prompts: {
-        hook: 'Make a bold, polarizing statement that challenges conventional wisdom',
-        build: 'Provide evidence or reasoning that supports your controversial take',
-        reveal: 'Address common objections and counter-arguments',
-        conclusion: 'Reinforce your position and invite debate'
+        hook: 'Start with a compelling story setup or life moment',
+        build: 'Build the narrative tension or emotional stakes',
+        reveal: 'Share the key lesson or transformation',
+        conclusion: 'Inspire others to take similar action'
       },
       narrative_structure: {
-        slide_1: { role: 'hook', style: 'controversial_statement', viral_pattern: 'shock_value' },
-        slide_2: { role: 'build', style: 'supporting_evidence', viral_pattern: 'justification' },
-        slide_3: { role: 'reveal', style: 'counter_objections', viral_pattern: 'debate_fuel' },
+        slide_1: { role: 'hook', style: 'story_opening', viral_pattern: 'narrative_hook' },
+        slide_2: { role: 'build', style: 'tension_building', viral_pattern: 'emotional_investment' },
+        slide_3: { role: 'reveal', style: 'lesson_reveal', viral_pattern: 'wisdom_sharing' },
+        slide_4: { role: 'conclusion', style: 'inspiration_call', viral_pattern: 'motivation' }
+      },
+      textStyle: {
+        fontSize: 18,
+        fontWeight: 'bold', 
+        color: '#000000',
+        backgroundColor: 'rgba(255, 255, 255, 1.0)',
+        backgroundMode: 'per_line',
+        letterSpacing: 0.3,
+        textTransform: 'none',
+      },
+      positioning: {
+        x: 0.5,
+        y: 0.3,
+        scale: 1.0,
+        rotation: 0
+      }
+    },
+    {
+      id: 'pop_off',
+      name: 'Pop Off',
+      description: 'Bold white background for maximum impact statements',
+      viral_rate: 85,
+      optimal_for: ['opinions', 'bold_statements', 'controversial', 'attention_grabbing'],
+      emotions: ['bold', 'controversial', 'engaging'],
+      content_types: ['opinion', 'debate', 'bold_statement'],
+      content_progression: ['bold_statement', 'support_argument', 'challenge_norms', 'defend_position'],
+      writing_style_prompts: {
+        hook: 'Make a bold, attention-grabbing statement',
+        build: 'Provide your reasoning or evidence',
+        reveal: 'Challenge conventional thinking',
+        conclusion: 'Stand firm in your position and invite response'
+      },
+      narrative_structure: {
+        slide_1: { role: 'hook', style: 'bold_statement', viral_pattern: 'attention_grab' },
+        slide_2: { role: 'build', style: 'reasoning_share', viral_pattern: 'justification' },
+        slide_3: { role: 'reveal', style: 'norm_challenging', viral_pattern: 'controversy' },
         slide_4: { role: 'conclusion', style: 'position_defense', viral_pattern: 'engagement_bait' }
       },
       textStyle: {
-        fontSize: 26,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(220, 38, 38, 0.9)',
-        backgroundMode: 'full',
-        letterSpacing: 0.3,
-      }
-    },
-    {
-      id: 'reaction_hook',
-      name: 'Reaction Hook',
-      description: 'Shock value that stops the scroll',
-      viral_rate: 85,
-      optimal_for: ['reactions', 'surprise', 'shocking', 'wtf'],
-      emotions: ['shocking', 'surprising', 'curious'],
-      content_types: ['reaction', 'surprise', 'reveal'],
-      content_progression: ['shock_statement', 'build_suspense', 'reveal_truth', 'reaction_prompt'],
-      writing_style_prompts: {
-        hook: 'Start with something shocking or unexpected that stops the scroll',
-        build: 'Build suspense with hints about what really happened',
-        reveal: 'Reveal the shocking truth or surprising outcome',
-        conclusion: 'Prompt viewers to share their reaction'
-      },
-      narrative_structure: {
-        slide_1: { role: 'hook', style: 'shock_statement', viral_pattern: 'pattern_interrupt' },
-        slide_2: { role: 'build', style: 'suspense_building', viral_pattern: 'anticipation' },
-        slide_3: { role: 'reveal', style: 'truth_reveal', viral_pattern: 'payoff' },
-        slide_4: { role: 'conclusion', style: 'reaction_prompt', viral_pattern: 'engagement' }
-      },
-      textStyle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(124, 58, 237, 0.85)',
-        backgroundMode: 'full',
-        letterSpacing: 0.2,
-      }
-    },
-    {
-      id: 'story_reveal',
-      name: 'Story Reveal',
-      description: 'Behind-the-scenes secrets exposed',
-      viral_rate: 82,
-      optimal_for: ['secrets', 'reveals', 'behind-scenes', 'insider'],
-      emotions: ['exclusive', 'curious', 'insider'],
-      content_types: ['secrets', 'reveal', 'insider', 'story'],
-      content_progression: ['tease_secret', 'build_context', 'reveal_secret', 'share_impact'],
-      writing_style_prompts: {
-        hook: 'Tease an exclusive secret or behind-the-scenes reveal',
-        build: 'Provide context about why this secret matters',
-        reveal: 'Expose the secret with compelling details',
-        conclusion: 'Share the impact or consequences of this revelation'
-      },
-      narrative_structure: {
-        slide_1: { role: 'hook', style: 'secret_tease', viral_pattern: 'exclusivity' },
-        slide_2: { role: 'build', style: 'context_setting', viral_pattern: 'importance' },
-        slide_3: { role: 'reveal', style: 'secret_reveal', viral_pattern: 'insider_knowledge' },
-        slide_4: { role: 'conclusion', style: 'impact_sharing', viral_pattern: 'value_delivery' }
-      },
-      textStyle: {
-        fontSize: 25,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(5, 150, 105, 0.9)',
-        backgroundMode: 'full',
+        fontSize: 30,
+        fontWeight: '900',
+        color: '#000000', 
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundMode: 'white',
         letterSpacing: 0.4,
-      }
-    },
-    {
-      id: 'money_success',
-      name: 'Money/Success',
-      description: 'Financial wisdom and success stories',
-      viral_rate: 79,
-      optimal_for: ['money', 'success', 'financial', 'wealth', 'business'],
-      emotions: ['motivating', 'inspiring', 'valuable'],
-      content_types: ['financial', 'business', 'success', 'motivation'],
-      content_progression: ['success_hook', 'struggle_story', 'solution_reveal', 'action_call'],
-      writing_style_prompts: {
-        hook: 'Start with a compelling success outcome or financial win',
-        build: 'Share the struggle or challenge that preceded success',
-        reveal: 'Reveal the key insight, strategy, or solution that worked',
-        conclusion: 'Call viewers to take action on this knowledge'
+        textTransform: 'uppercase',
       },
-      narrative_structure: {
-        slide_1: { role: 'hook', style: 'success_outcome', viral_pattern: 'aspiration' },
-        slide_2: { role: 'build', style: 'struggle_context', viral_pattern: 'relatability' },
-        slide_3: { role: 'reveal', style: 'solution_reveal', viral_pattern: 'value_bomb' },
-        slide_4: { role: 'conclusion', style: 'action_prompt', viral_pattern: 'motivation' }
-      },
-      textStyle: {
-        fontSize: 23,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(217, 119, 6, 0.85)',
-        backgroundMode: 'full',
-        letterSpacing: 0.1,
+      positioning: {
+        x: 0.5,
+        y: 0.4,
+        scale: 1.0,
+        rotation: 0
       }
     }
   ];
@@ -360,24 +321,18 @@ Format as JSON:
 
 function getTemplateEmoji(templateId: string): string {
   const emojis = {
-    'hidden_gems': '💎',
-    'before_after': '✨',
-    'day_in_life': '📅',
-    'photo_dump': '📸',
-    'things_that': '📝',
-    'controversial_take': '🔥'
+    'minimalist_viral': '🔥',
+    'story_mode': '📱',
+    'pop_off': '⚡'
   };
   return emojis[templateId] || '✨';
 }
 
 function getTemplateGradient(templateId: string): string[] {
   const gradients = {
-    'hidden_gems': ['#9333EA', '#C084FC'],
-    'before_after': ['#EC4899', '#F472B6'],
-    'day_in_life': ['#8B5CF6', '#A78BFA'],
-    'photo_dump': ['#06B6D4', '#67E8F9'],
-    'things_that': ['#EAB308', '#FDE047'],
-    'controversial_take': ['#EF4444', '#F87171']
+    'minimalist_viral': ['#9333EA', '#C084FC'],
+    'story_mode': ['#06B6D4', '#67E8F9'],
+    'pop_off': ['#EF4444', '#F87171']
   };
   return gradients[templateId] || ['#9333EA', '#C084FC'];
 }

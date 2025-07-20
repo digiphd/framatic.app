@@ -42,7 +42,7 @@ interface Slide {
     fontStyle?: string;
     textTransform?: string;
     letterSpacing?: number;
-    backgroundMode?: 'none' | 'half' | 'full' | 'white';
+    backgroundMode?: 'none' | 'half' | 'full' | 'white' | 'per_line';
   };
   textPosition?: { x: number; y: number };
   textScale?: number;
@@ -81,110 +81,80 @@ export function PreviewScreen({ slideshow, onBack, onExport, onEditMetadata, onS
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const slideListRef = useRef<FlatList>(null);
 
-  // Default templates (could come from props or API)
+  // Default templates (unified with MagicCreateScreen)
   const defaultTemplates = [
     {
-      id: 'question_hook',
-      name: 'Question Hook',
+      id: 'minimalist_viral',
+      name: 'Minimalist Viral',
       viralRate: 92,
-      description: 'Provocative questions that demand answers',
-      emoji: '❓',
-      gradient: ['#EF4444', '#F87171'],
-      example: 'Why this advice is actually terrible...',
-      textStyle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backgroundMode: 'full',
-        letterSpacing: 0.5,
-      },
-    },
-    {
-      id: 'controversial_take',
-      name: 'Controversial',
-      viralRate: 88,
-      description: 'Bold statements that spark debate',
+      description: 'Clean white text with shadow - perfect for authentic moments',
       emoji: '🔥',
-      gradient: ['#DC2626', '#EF4444'],
-      example: 'This might be controversial but...',
+      gradient: ['#9333EA', '#C084FC'],
+      example: 'POV: when life hits different...',
       textStyle: {
-        fontSize: 26,
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#FFFFFF',
-        backgroundColor: 'rgba(220, 38, 38, 0.9)',
-        backgroundMode: 'full',
-        letterSpacing: 0.3,
+        backgroundColor: 'transparent',
+        backgroundMode: 'none',
+        letterSpacing: 0.5,
+        textAlign: 'center',
       },
+      positioning: {
+        x: 0.5,
+        y: 0.3,
+        scale: 1.0,
+        rotation: 0
+      }
     },
     {
-      id: 'reaction_hook',
-      name: 'Reaction Hook',
-      viralRate: 85,
-      description: 'Shock value that stops the scroll',
-      emoji: '😱',
-      gradient: ['#7C3AED', '#A855F7'],
-      example: 'how did she do that?! 👀',
-      textStyle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(124, 58, 237, 0.85)',
-        backgroundMode: 'full',
-        letterSpacing: 0.2,
-      },
-    },
-    {
-      id: 'story_reveal',
-      name: 'Story Reveal',
-      viralRate: 82,
-      description: 'Behind-the-scenes secrets exposed',
-      emoji: '🎭',
-      gradient: ['#059669', '#10B981'],
-      example: 'CEO reveals the real reason...',
-      textStyle: {
-        fontSize: 25,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(5, 150, 105, 0.9)',
-        backgroundMode: 'full',
-        letterSpacing: 0.4,
-      },
-    },
-    {
-      id: 'money_success',
-      name: 'Money/Success',
-      viralRate: 79,
-      description: 'Financial wisdom and success stories',
-      emoji: '💰',
-      gradient: ['#D97706', '#F59E0B'],
-      example: 'Your money will work harder...',
-      textStyle: {
-        fontSize: 23,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        backgroundColor: 'rgba(217, 119, 6, 0.85)',
-        backgroundMode: 'full',
-        letterSpacing: 0.1,
-      },
-    },
-    {
-      id: 'photo_dump',
-      name: 'Photo Dump',
-      viralRate: 75,
-      description: 'Casual authentic moments',
-      emoji: '📸',
+      id: 'story_mode',
+      name: 'Story Mode',
+      viralRate: 88,
+      description: 'Semi-transparent background for perfect readability',
+      emoji: '📱',
       gradient: ['#06B6D4', '#67E8F9'],
-      example: 'Recent camera roll hits...',
+      example: 'This is your sign to take the leap...',
       textStyle: {
-        fontSize: 24,
+        fontSize: 18,
+        fontWeight: 'bold', 
+        color: '#000000',
+        backgroundColor: 'rgba(255, 255, 255, 1.0)',
+        backgroundMode: 'per_line',
+        letterSpacing: 0.3,
+        textTransform: 'none',
+      },
+      positioning: {
+        x: 0.5,
+        y: 0.3,
+        scale: 1.0,
+        rotation: 0
+      }
+    },
+    {
+      id: 'pop_off',
+      name: 'Pop Off',
+      viralRate: 85,
+      description: 'Bold white background for maximum impact statements',
+      emoji: '⚡',
+      gradient: ['#EF4444', '#F87171'],
+      example: 'Hot take: this changes everything...',
+      textStyle: {
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#FFFFFF',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        backgroundMode: 'full',
-        letterSpacing: 0.1,
+        backgroundColor: 'rgba(0, 0, 0, 1.0)',
+        backgroundMode: 'per_line',
+        letterSpacing: 0.3,
+        textTransform: 'none',
       },
-    },
+      positioning: {
+        x: 0.5,
+        y: 0.3,
+        scale: 1.0,
+        rotation: 0
+      }
+    }
   ];
 
   const currentTemplate = defaultTemplates.find(t => t.id === editingSlideshow.template) || defaultTemplates[0];

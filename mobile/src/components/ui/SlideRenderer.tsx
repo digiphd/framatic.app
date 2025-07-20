@@ -134,7 +134,7 @@ export const SlideRenderer = forwardRef<SlideRendererRef, SlideRendererProps>(
       const resolutionScale = calculateResolutionScale(width, screenWidth);
       return {
         ...getReactNativeTextStyle(slide.textStyle, slide.textScale, resolutionScale),
-        maxWidth: width * 0.8,
+        maxWidth: width * 0.6,
       };
     };
 
@@ -151,7 +151,7 @@ export const SlideRenderer = forwardRef<SlideRendererRef, SlideRendererProps>(
         width,
         resolutionScale,
         undefined, // No Canvas context available on mobile
-        3 // Match React Native numberOfLines={3}
+        0 // No line limit - allow full text
       );
 
       // Use shared transformation logic with container dimensions for exact centering
@@ -183,7 +183,7 @@ export const SlideRenderer = forwardRef<SlideRendererRef, SlideRendererProps>(
         ...backgroundStyle,
         alignItems: 'center',
         justifyContent: 'center',
-        maxWidth: width * 0.8,
+        maxWidth: width * 0.6,
       };
     };
 
@@ -235,7 +235,7 @@ export const SlideRenderer = forwardRef<SlideRendererRef, SlideRendererProps>(
         {/* Text Overlay */}
         {slide.text && (
           <View style={getTextContainerStyle()}>
-            <Text style={getTextStyle()} numberOfLines={3}>
+            <Text style={getTextStyle()}>
               {slide.text}
             </Text>
           </View>

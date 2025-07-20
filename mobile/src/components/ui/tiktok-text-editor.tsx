@@ -34,7 +34,7 @@ interface TextColor {
   gradient?: string[];
 }
 
-type BackgroundMode = 'none' | 'half' | 'full' | 'white';
+type BackgroundMode = 'none' | 'half' | 'full' | 'white' | 'per_line';
 
 interface TikTokTextEditorProps {
   visible: boolean;
@@ -80,7 +80,7 @@ export function TikTokTextEditor({ visible, initialText = '', onSave, onClose }:
   const textInputRef = useRef<TextInput>(null);
 
   const cycleBackgroundMode = () => {
-    const modes: BackgroundMode[] = ['none', 'half', 'full', 'white'];
+    const modes: BackgroundMode[] = ['none', 'half', 'full', 'white', 'per_line'];
     const currentIndex = modes.indexOf(backgroundMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setBackgroundMode(modes[nextIndex]);
@@ -109,14 +109,25 @@ export function TikTokTextEditor({ visible, initialText = '', onSave, onClose }:
           paddingVertical: spacing.xs,
           borderRadius: borderRadius.sm,
         };
+      case 'per_line':
+        return {
+          backgroundColor: 'rgba(255, 255, 255, 1.0)',
+          paddingHorizontal: spacing.sm,
+          paddingVertical: spacing.xs,
+          borderRadius: borderRadius.sm,
+          // Visual indicator for per_line mode in edit preview
+          borderWidth: 1,
+          borderColor: 'rgba(0, 0, 0, 0.2)',
+          borderStyle: 'dashed',
+        };
       default:
         return {};
     }
   };
 
   const getTextStyle = () => {
-    // Adjust text color for white background
-    const textColor = backgroundMode === 'white' ? '#000000' : selectedColor.color;
+    // Adjust text color for white background modes
+    const textColor = (backgroundMode === 'white' || backgroundMode === 'per_line') ? '#000000' : selectedColor.color;
     
     return {
       color: textColor,
@@ -139,6 +150,8 @@ export function TikTokTextEditor({ visible, initialText = '', onSave, onClose }:
       textTransform: selectedStyle.textTransform,
       letterSpacing: selectedStyle.letterSpacing,
       backgroundMode,
+      // Add backgroundColor for per_line mode
+      backgroundColor: backgroundMode === 'per_line' ? 'rgba(255, 255, 255, 1.0)' : undefined,
     };
     onSave(text, finalStyle);
     onClose();
@@ -320,7 +333,8 @@ export function TikTokTextEditor({ visible, initialText = '', onSave, onClose }:
                 <Ionicons 
                   name={backgroundMode === 'none' ? 'text-outline' : 
                        backgroundMode === 'half' ? 'text' : 
-                       backgroundMode === 'full' ? 'rectangle' : 'square'} 
+                       backgroundMode === 'full' ? 'rectangle' : 
+                       backgroundMode === 'white' ? 'square' : 'reorder-three-outline'} 
                   size={20} 
                   color={colors.text} 
                 />

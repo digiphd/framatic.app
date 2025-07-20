@@ -349,6 +349,27 @@ export const db = {
     return data;
   },
 
+  async getTemplateById(templateId: string) {
+    const { data, error } = await supabaseAdmin
+      .from('viral_templates')
+      .select('*')
+      .eq('name', templateId)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async getViralTemplates() {
+    const { data, error } = await supabaseAdmin
+      .from('viral_templates')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return data;
+  },
+
   // Slideshow operations
   async createSlideshow(slideshow: Database['public']['Tables']['slideshows']['Insert']) {
     const { data, error } = await supabaseAdmin

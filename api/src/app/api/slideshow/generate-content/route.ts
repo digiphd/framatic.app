@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/supabase/client';
 import { openRouter } from '@/lib/openrouter/client';
-import { OPENROUTER_MODELS } from '@famatic/shared';
+import { OPENROUTER_MODELS, generateId } from '@famatic/shared';
 import { parseAIResponse, validateAIResponse } from '@/lib/json-parser';
 
 const MVP_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -44,7 +44,30 @@ export async function POST(request: NextRequest) {
     console.log('Generating content for theme:', selected_theme.id);
     console.log('Voice input:', voice_input);
 
-    // 1. Get user context for personalization
+    // 1. Validate and potentially enhance template with database data
+    let theme = selected_theme;
+    try {
+      const dbTemplate = await db.getTemplateById(selected_theme.id);
+      if (dbTemplate) {
+        // Merge database template data with client template
+        theme = {
+          ...selected_theme,
+          hook_formula: dbTemplate.hook_formula,
+          caption_template: dbTemplate.caption_template,
+          slide_count_range: dbTemplate.slide_count_range,
+          target_emotions: dbTemplate.target_emotions || selected_theme.emotions,
+          optimal_photo_types: dbTemplate.optimal_photo_types || selected_theme.optimal_for,
+          // Keep textStyle and positioning from client for now
+          textStyle: selected_theme.textStyle,
+          positioning: selected_theme.positioning
+        };
+        console.log('Enhanced theme with database template data');
+      }
+    } catch (error) {
+      console.log('No database template found, using client template:', error.message);
+    }
+
+    // 2. Get user context for personalization
     const userContext = await db.getUserContext(userId);
     
     // 2. Get user's analyzed assets for context (increased limit to get ALL photos)
@@ -53,7 +76,7 @@ export async function POST(request: NextRequest) {
     // 3. Select appropriate photos FIRST (relevance-driven)
     const selectedPhotos = await selectPhotosForSlideshow({
       userAssets,
-      theme: selected_theme,
+      theme: theme,
       slideCount: slide_count,
       voiceInput: voice_input
     });
@@ -69,7 +92,7 @@ export async function POST(request: NextRequest) {
     
     const slideshowContent = await generatePhotoSpecificContent({
       voiceInput: voice_input,
-      theme: selected_theme,
+      theme: theme,
       selectedAssets,
       userContext,
       slideCount: slide_count
@@ -78,14 +101,14 @@ export async function POST(request: NextRequest) {
     // 5. Generate viral hook and caption
     const viralElements = await generateViralElements({
       voiceInput: voice_input,
-      theme: selected_theme,
+      theme: theme,
       slideshowContent,
       userContext
     });
 
     // 6. Construct final slideshow
     const slideshow = constructSlideshow({
-      theme: selected_theme,
+      theme: theme,
       slideshowContent,
       selectedPhotos,
       viralElements,
@@ -582,7 +605,7 @@ function constructSlideshow(options: {
       imageUrl,
       text: slideContent.text,
       textStyle: theme.textStyle,
-      textPosition: { x: 0.5, y: 0.25 }, // Centered positioning
+      textPosition: theme.positioning || { x: 0.5, y: 0.25 }, // Use template positioning
       textScale: 1,
       textRotation: 0,
       metadata: {
@@ -594,7 +617,7 @@ function constructSlideshow(options: {
   });
   
   return {
-    id: `generated-${Date.now()}`,
+    id: generateId(),
     title: `${theme.name} Magic`,
     template: theme.id,
     slides,

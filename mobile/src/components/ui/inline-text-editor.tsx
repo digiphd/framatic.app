@@ -153,8 +153,8 @@ export function InlineTextEditor({
       textAlign: 'center' as const,
       minWidth: 100,
       textShadowColor: 'rgba(0, 0, 0, 0.8)',
-      textShadowOffset: { width: 1, height: 1 },
-      textShadowRadius: 2,
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 0,
       ...getBackgroundStyle(),
     };
   };

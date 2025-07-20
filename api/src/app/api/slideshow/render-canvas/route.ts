@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         ctx.drawImage(backgroundImage, drawX, drawY, drawWidth, drawHeight);
 
         // Calculate resolution scale using shared logic
-        const resolutionScale = calculateResolutionScale(CANVAS_WIDTH);
+        const resolutionScale = calculateResolutionScale(CANVAS_WIDTH, 375); // 375 is standard mobile width
 
         // Mobile app now sends consistent relative coordinates (0-1 range)
         const relativePosition = slide.textPosition || { x: 0.5, y: 0.25 };
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         // Apply transform and draw text background if needed
         if (backgroundMode !== 'none' && slide.text) {
           // FIXED: Check if text needs wrapping and size background accordingly
-          const maxTextWidth = CANVAS_WIDTH * 0.8;
+          const maxTextWidth = CANVAS_WIDTH * 0.6;
           const textWidth = ctx.measureText(slide.text).width;
           const needsWrapping = textWidth > maxTextWidth;
           

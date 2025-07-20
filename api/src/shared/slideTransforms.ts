@@ -26,7 +26,7 @@ export interface TextStyle {
   textTransform?: string;
   letterSpacing?: number;
   backgroundColor?: string;
-  backgroundMode?: 'none' | 'half' | 'full' | 'white';
+  backgroundMode?: 'none' | 'half' | 'full' | 'white' | 'per_line';
 }
 
 export interface SlideRenderConfig {
@@ -96,8 +96,8 @@ export function calculateTextBackground(
   let lines: string[] = [transformedText]; // Default to single line
   
   if (ctx) {
-    // Calculate max width for text (80% of canvas, matching React Native)
-    const maxTextWidth = canvasWidth * 0.8;
+    // Calculate max width for text (60% of canvas, matching React Native)
+    const maxTextWidth = canvasWidth * 0.6;
     
     // Get wrapped lines with transformed text
     lines = wrapText(ctx, transformedText, maxTextWidth, maxLines);
@@ -144,20 +144,28 @@ export function getTextColors(textStyle?: TextStyle): {
 } {
   const backgroundMode = textStyle?.backgroundMode || 'none';
   
-  // For white background mode, force text to be black for contrast
-  // For all other modes, use the provided color or default to white
-  const textColor = backgroundMode === 'white' ? '#000000' : (textStyle?.color || '#FFFFFF');
-  
+  // Use provided colors from textStyle, with smart defaults based on background
   let backgroundColor = 'transparent';
+  let textColor = textStyle?.color || '#FFFFFF';
+  
   switch (backgroundMode) {
     case 'full':
       backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      textColor = textStyle?.color || '#FFFFFF';
       break;
     case 'half':
       backgroundColor = 'rgba(0, 0, 0, 0.4)';
+      textColor = textStyle?.color || '#FFFFFF';
       break;
     case 'white':
       backgroundColor = 'rgba(255, 255, 255, 1.0)';
+      textColor = textStyle?.color || '#000000'; // Default to black for white backgrounds
+      break;
+    case 'per_line':
+      // Use the backgroundColor specified in textStyle for per_line mode
+      backgroundColor = textStyle?.backgroundColor || 'rgba(255, 255, 255, 1.0)';
+      // Use the text color specified in textStyle
+      textColor = textStyle?.color || '#000000';
       break;
   }
   
@@ -209,9 +217,9 @@ export const TEXT_STYLE_CONSTANTS = {
   DEFAULT_LINE_HEIGHT_RATIO: 1.2,
   TEXT_SHADOW: {
     COLOR: 'rgba(0, 0, 0, 0.8)',
-    OFFSET_X: 1,
-    OFFSET_Y: 1,
-    BLUR_RADIUS: 2,
+    OFFSET_X: 2,
+    OFFSET_Y: 2,
+    BLUR_RADIUS: 3,
   },
   BACKGROUND_PADDING: {
     HORIZONTAL: 16,
@@ -281,8 +289,8 @@ export function wrapText(
   const finalLines: string[] = [];
   
   for (const manualLine of manualLines) {
-    // If we've already reached maxLines, stop processing
-    if (finalLines.length >= maxLines) {
+    // If we've already reached maxLines, stop processing (skip if maxLines is 0 = unlimited)
+    if (maxLines > 0 && finalLines.length >= maxLines) {
       break;
     }
     
@@ -305,8 +313,8 @@ export function wrapText(
         finalLines.push(currentLine);
         currentLine = word;
         
-        // Check if we've reached max lines
-        if (finalLines.length >= maxLines) {
+        // Check if we've reached max lines (skip if maxLines is 0 = unlimited)
+        if (maxLines > 0 && finalLines.length >= maxLines) {
           // Truncate last line if it would exceed maxLines
           if (finalLines.length === maxLines) {
             const lastLine = finalLines[finalLines.length - 1];
@@ -320,8 +328,8 @@ export function wrapText(
       }
     }
     
-    // Add the last line from this manual line if we haven't exceeded maxLines
-    if (currentLine && finalLines.length < maxLines) {
+    // Add the last line from this manual line if we haven't exceeded maxLines (or unlimited)
+    if (currentLine && (maxLines === 0 || finalLines.length < maxLines)) {
       finalLines.push(currentLine);
     }
   }
@@ -556,37 +564,89 @@ export async function drawCanvasTextWithShadow(
   // Apply text transformation first
   const transformedText = applyTextTransform(text, textStyle.textTransform);
   
-  // Temporarily disable emoji image rendering and use font-based approach for stability
-  // TODO: Re-enable emoji image rendering once positioning issues are resolved
+  // For viral TikTok style, create a true text outline using stroke
+  const outlineWidth = 1.5 * resolutionScale;
   
   // If no maxWidth specified, draw single line (backward compatibility)
   if (!maxWidth) {
-    // Draw shadow if not white background mode
-    if (backgroundMode !== 'white') {
+    // For per-line mode, draw background for single line (all corners rounded)
+    if (backgroundMode === 'per_line') {
       ctx.save();
-      ctx.fillStyle = TEXT_STYLE_CONSTANTS.TEXT_SHADOW.COLOR;
       
-      if (fillTextWithTwemoji) {
-        await fillTextWithTwemoji(
-          ctx, 
-          transformedText, 
-          x + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_X * resolutionScale),
-          y + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_Y * resolutionScale)
-        );
-      } else {
-        ctx.fillText(
-          transformedText, 
-          x + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_X * resolutionScale),
-          y + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_Y * resolutionScale)
-        );
+      // Measure the text width
+      const textMetrics = ctx.measureText(transformedText);
+      const textWidth = textMetrics.width;
+      const padding = 16 * resolutionScale;
+      const paddingV = 8 * resolutionScale; // Increased padding to prevent descender clipping
+      const radius = 8 * resolutionScale;
+      
+      // Get font size for height calculation
+      const fontSize = calculateFontSize(
+        textStyle.fontSize || TEXT_STYLE_CONSTANTS.DEFAULT_FONT_SIZE,
+        1,
+        resolutionScale
+      );
+      
+      // Get background color for per-line mode
+      const { backgroundColor } = getTextColors(textStyle);
+      
+      // Draw individual rounded rectangle background for single line (all corners rounded)
+      const bgX = x - (textWidth / 2) - padding;
+      const bgY = y - (fontSize / 2) - paddingV;
+      const bgWidth = textWidth + (padding * 2);
+      const bgHeight = fontSize + (paddingV * 2);
+      
+      ctx.fillStyle = backgroundColor;
+      
+      // For single line, all corners are rounded (TikTok-style flowing effect)
+      ctx.beginPath();
+      ctx.moveTo(bgX + radius, bgY);
+      ctx.lineTo(bgX + bgWidth - radius, bgY);
+      ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + radius);
+      ctx.lineTo(bgX + bgWidth, bgY + bgHeight - radius);
+      ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - radius, bgY + bgHeight);
+      ctx.lineTo(bgX + radius, bgY + bgHeight);
+      ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - radius);
+      ctx.lineTo(bgX, bgY + radius);
+      ctx.quadraticCurveTo(bgX, bgY, bgX + radius, bgY);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+    }
+    // Draw black outline for viral effect using multiple fill positions (except white/per_line background modes)
+    else if (backgroundMode !== 'white' && backgroundMode !== 'per_line') {
+      ctx.save();
+      ctx.fillStyle = '#000000';
+      
+      // Create solid outline by drawing black text at multiple offset positions
+      const offsets = [
+        { x: -outlineWidth, y: -outlineWidth },
+        { x: 0, y: -outlineWidth },
+        { x: outlineWidth, y: -outlineWidth },
+        { x: -outlineWidth, y: 0 },
+        { x: outlineWidth, y: 0 },
+        { x: -outlineWidth, y: outlineWidth },
+        { x: 0, y: outlineWidth },
+        { x: outlineWidth, y: outlineWidth },
+      ];
+      
+      console.log('Drawing text outline using fill method - outlineWidth:', outlineWidth);
+      
+      for (const offset of offsets) {
+        if (fillTextWithTwemoji) {
+          await fillTextWithTwemoji(ctx, transformedText, x + offset.x, y + offset.y);
+        } else {
+          ctx.fillText(transformedText, x + offset.x, y + offset.y);
+        }
       }
+      
       ctx.restore();
     }
     
     // Draw main text
-    // Use getTextColors to ensure proper contrast for white backgrounds
-  const { textColor } = getTextColors(textStyle);
-  ctx.fillStyle = textColor;
+    const { textColor } = getTextColors(textStyle);
+    ctx.fillStyle = textColor;
     
     if (fillTextWithTwemoji) {
       await fillTextWithTwemoji(ctx, transformedText, x, y);
@@ -607,43 +667,135 @@ export async function drawCanvasTextWithShadow(
     1, // textScale should be applied before this function
     resolutionScale
   );
-  const lineHeight = fontSize * TEXT_STYLE_CONSTANTS.DEFAULT_LINE_HEIGHT_RATIO;
+  // Increase line height for per_line backgrounds to prevent overlap
+  const baseLineHeight = fontSize * TEXT_STYLE_CONSTANTS.DEFAULT_LINE_HEIGHT_RATIO;
+  const lineHeight = backgroundMode === 'per_line' ? baseLineHeight * 1.4 : baseLineHeight;
   
   // Calculate starting Y position for centered multi-line text
   const totalHeight = lines.length * lineHeight;
   const startY = y - (totalHeight / 2) + (lineHeight / 2);
   
-  // Draw each line with emoji support
+  // Measure all line widths first for conditional corner logic
+  const lineWidths: number[] = [];
+  if (backgroundMode === 'per_line') {
+    for (const line of lines) {
+      const lineMetrics = ctx.measureText(line);
+      lineWidths.push(lineMetrics.width);
+    }
+  }
+
+  // Draw each line with proper background and text
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const lineY = startY + (index * lineHeight);
     
-    // Draw shadow if not white background mode
-    if (backgroundMode !== 'white') {
+    // For per-line mode, draw individual background with TikTok-style conditional corners
+    if (backgroundMode === 'per_line') {
       ctx.save();
-      ctx.fillStyle = TEXT_STYLE_CONSTANTS.TEXT_SHADOW.COLOR;
       
-      if (fillTextWithTwemoji) {
-        await fillTextWithTwemoji(
-          ctx, 
-          line, 
-          x + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_X * resolutionScale),
-          lineY + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_Y * resolutionScale)
-        );
+      const lineWidth = lineWidths[index];
+      const padding = 16 * resolutionScale; // Match React Native padding
+      const paddingV = 8 * resolutionScale; // Increased padding to prevent descender clipping
+      const radius = 8 * resolutionScale;
+      
+      // Simple rounded corners for all lines - clean and readable approach
+      const topLeftRounded = true;
+      const topRightRounded = true;
+      const bottomLeftRounded = true;
+      const bottomRightRounded = true;
+      
+      // Get background color for per-line mode
+      const { backgroundColor } = getTextColors(textStyle);
+      
+      // Draw individual background with conditional rounded corners
+      const bgX = x - (lineWidth / 2) - padding;
+      const bgY = lineY - (fontSize / 2) - paddingV;
+      const bgWidth = lineWidth + (padding * 2);
+      const bgHeight = fontSize + (paddingV * 2);
+      
+      ctx.fillStyle = backgroundColor;
+      
+      // Draw path with conditional rounded corners for TikTok-style flowing effect
+      ctx.beginPath();
+      
+      // Start at top-left corner
+      if (topLeftRounded) {
+        ctx.moveTo(bgX + radius, bgY);
       } else {
-        ctx.fillText(
-          line, 
-          x + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_X * resolutionScale),
-          lineY + (TEXT_STYLE_CONSTANTS.TEXT_SHADOW.OFFSET_Y * resolutionScale)
-        );
+        ctx.moveTo(bgX, bgY);
       }
+      
+      // Top edge and top-right corner
+      if (topRightRounded) {
+        ctx.lineTo(bgX + bgWidth - radius, bgY);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + radius);
+      } else {
+        ctx.lineTo(bgX + bgWidth, bgY);
+        ctx.lineTo(bgX + bgWidth, bgY + radius);
+      }
+      
+      // Right edge and bottom-right corner
+      if (bottomRightRounded) {
+        ctx.lineTo(bgX + bgWidth, bgY + bgHeight - radius);
+        ctx.quadraticCurveTo(bgX + bgWidth, bgY + bgHeight, bgX + bgWidth - radius, bgY + bgHeight);
+      } else {
+        ctx.lineTo(bgX + bgWidth, bgY + bgHeight);
+        ctx.lineTo(bgX + bgWidth - radius, bgY + bgHeight);
+      }
+      
+      // Bottom edge and bottom-left corner
+      if (bottomLeftRounded) {
+        ctx.lineTo(bgX + radius, bgY + bgHeight);
+        ctx.quadraticCurveTo(bgX, bgY + bgHeight, bgX, bgY + bgHeight - radius);
+      } else {
+        ctx.lineTo(bgX, bgY + bgHeight);
+        ctx.lineTo(bgX, bgY + bgHeight - radius);
+      }
+      
+      // Left edge and back to start
+      if (topLeftRounded) {
+        ctx.lineTo(bgX, bgY + radius);
+        ctx.quadraticCurveTo(bgX, bgY, bgX + radius, bgY);
+      } else {
+        ctx.lineTo(bgX, bgY);
+      }
+      
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+    } 
+    // For non-per_line modes, draw outline (except white/per_line background modes)
+    else if (backgroundMode !== 'white' && backgroundMode !== 'per_line') {
+      ctx.save();
+      ctx.fillStyle = '#000000';
+      
+      // Create solid outline by drawing black text at multiple offset positions
+      const offsets = [
+        { x: -outlineWidth, y: -outlineWidth },
+        { x: 0, y: -outlineWidth },
+        { x: outlineWidth, y: -outlineWidth },
+        { x: -outlineWidth, y: 0 },
+        { x: outlineWidth, y: 0 },
+        { x: -outlineWidth, y: outlineWidth },
+        { x: 0, y: outlineWidth },
+        { x: outlineWidth, y: outlineWidth },
+      ];
+      
+      for (const offset of offsets) {
+        if (fillTextWithTwemoji) {
+          await fillTextWithTwemoji(ctx, line, x + offset.x, lineY + offset.y);
+        } else {
+          ctx.fillText(line, x + offset.x, lineY + offset.y);
+        }
+      }
+      
       ctx.restore();
     }
     
     // Draw main text
-    // Use getTextColors to ensure proper contrast for white backgrounds
-  const { textColor } = getTextColors(textStyle);
-  ctx.fillStyle = textColor;
+    const { textColor } = getTextColors(textStyle);
+    ctx.fillStyle = textColor;
     
     if (fillTextWithTwemoji) {
       await fillTextWithTwemoji(ctx, line, x, lineY);

@@ -186,7 +186,7 @@ async function renderTextOverlay(ctx: CanvasRenderingContext2D, slide: SlideData
   ctx.rotate((textRotation * Math.PI) / 180);
 
   // CRITICAL: Use consistent wrapping width for both background and text
-  const textWrappingWidth = CANVAS_WIDTH * 0.8;
+  const textWrappingWidth = CANVAS_WIDTH * 0.6;
   const lines = wrapText(ctx, text, textWrappingWidth);
   const lineHeight = scaledFontSize * 1.2; // Match React Native lineHeight
   console.log('Text wrapping:', { textWrappingWidth, lines, lineHeight });

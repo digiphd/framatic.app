@@ -17,6 +17,8 @@ import {
   calculateTextBackground,
   calculateFontSize
 } from '../../shared/slideTransforms';
+import { OutlinedText } from './outlined-text';
+import { PerLineText } from './per-line-text';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -73,13 +75,14 @@ export function DraggableText({
       slideWidth,
       resolutionScale,
       undefined, // No Canvas context on mobile
-      3 // maxLines
+      0 // No line limit - allow full text
     );
     
-    // Calculate center position and then convert to top-left
+    // Calculate center position - use text background width for proper centering
     const centerX = relativePos.x * slideWidth;
     const centerY = relativePos.y * slideHeight;
     
+    // Convert center position to top-left with proper text width
     return { 
       x: centerX - (textBackground.width / 2), 
       y: centerY - (textBackground.height / 2)
@@ -173,7 +176,9 @@ export function DraggableText({
   };
 
   const getTextStyle = () => {
-    return getReactNativeTextStyle(style, scale, resolutionScale);
+    // Calculate max width for text consistency with API
+    const maxTextWidth = slideWidth * 0.6;
+    return getReactNativeTextStyle(style, scale, resolutionScale, maxTextWidth);
   };
 
   const handleTap = () => {
@@ -426,11 +431,23 @@ export function DraggableText({
           alignItems: 'center',
         }}
       >
-        <Text
-          style={getTextStyle()}
-        >
-          {text || (isEditing ? 'Tap to add text...' : '')}
-        </Text>
+        {style?.backgroundMode === 'per_line' ? (
+          <PerLineText
+            style={getTextStyle()}
+            backgroundStyle={{ backgroundColor: style?.backgroundColor || 'rgba(255, 255, 255, 1.0)' }}
+            maxWidth={slideWidth * 0.6}
+          >
+            {text || (isEditing ? 'Tap to add text...' : '')}
+          </PerLineText>
+        ) : (
+          <OutlinedText
+            style={getTextStyle()}
+            outlineColor="#000000"
+            outlineWidth={1.5}
+          >
+            {text || (isEditing ? 'Tap to add text...' : '')}
+          </OutlinedText>
+        )}
 
         {/* Selection handles and edit button */}
         {isEditing && isSelected && (

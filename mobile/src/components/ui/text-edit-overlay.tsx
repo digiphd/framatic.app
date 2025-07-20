@@ -33,7 +33,7 @@ interface TextColor {
   gradient?: string[];
 }
 
-type BackgroundMode = 'none' | 'half' | 'full' | 'white';
+type BackgroundMode = 'none' | 'half' | 'full' | 'white' | 'per_line';
 
 interface TextEditOverlayProps {
   visible: boolean;
@@ -192,11 +192,16 @@ export function TextEditOverlay({
   };
 
   const cycleBackgroundMode = () => {
-    const modes: BackgroundMode[] = ['none', 'half', 'full', 'white'];
+    const modes: BackgroundMode[] = ['none', 'half', 'full', 'white', 'per_line'];
     const currentIndex = modes.indexOf(backgroundMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setBackgroundMode(modes[nextIndex]);
-    updateStyle({ backgroundMode: modes[nextIndex] });
+    // Add backgroundColor for per_line mode
+    const styleUpdate = { 
+      backgroundMode: modes[nextIndex],
+      backgroundColor: modes[nextIndex] === 'per_line' ? 'rgba(255, 255, 255, 1.0)' : undefined
+    };
+    updateStyle(styleUpdate);
     
     // Refocus the text input to keep keyboard open
     setTimeout(() => {
@@ -267,13 +272,24 @@ export function TextEditOverlay({
           paddingVertical: spacing.xs,
           borderRadius: borderRadius.sm,
         };
+      case 'per_line':
+        return {
+          backgroundColor: 'rgba(255, 255, 255, 1.0)',
+          paddingHorizontal: spacing.sm,
+          paddingVertical: spacing.xs,
+          borderRadius: borderRadius.sm,
+          // Visual indicator for per_line mode in edit preview
+          borderWidth: 1,
+          borderColor: 'rgba(0, 0, 0, 0.2)',
+          borderStyle: 'dashed',
+        };
       default:
         return {};
     }
   };
 
   const getTextStyle = () => {
-    const textColor = backgroundMode === 'white' ? '#000000' : selectedColor.color;
+    const textColor = (backgroundMode === 'white' || backgroundMode === 'per_line') ? '#000000' : selectedColor.color;
     
     return {
       color: textColor,
@@ -286,9 +302,9 @@ export function TextEditOverlay({
       textAlign: 'center' as const,
       minWidth: 100,
       minHeight: 40,
-      textShadowColor: backgroundMode === 'white' ? 'transparent' : 'rgba(0, 0, 0, 0.8)',
-      textShadowOffset: { width: 1, height: 1 },
-      textShadowRadius: backgroundMode === 'white' ? 0 : 2,
+      textShadowColor: 'transparent',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 0,
       ...getBackgroundStyle(),
     };
   };
@@ -444,7 +460,8 @@ export function TextEditOverlay({
             <Ionicons 
               name={backgroundMode === 'none' ? 'text-outline' : 
                    backgroundMode === 'half' ? 'text' : 
-                   backgroundMode === 'full' ? 'square' : 'square-outline'} 
+                   backgroundMode === 'full' ? 'square' : 
+                   backgroundMode === 'white' ? 'square-outline' : 'reorder-three-outline'} 
               size={20} 
               color={colors.text} 
             />
@@ -521,7 +538,7 @@ export function TextEditOverlay({
               placeholderTextColor={colors.textSecondary}
               style={{
                 ...getTextStyle(),
-                width: screenWidth * 0.8, // Use most of screen width for editing
+                width: screenWidth * 0.6, // Use consistent width for text editing (matches API)
                 textAlign: 'center',
                 // Add subtle border for better visibility during editing
                 borderWidth: 1,

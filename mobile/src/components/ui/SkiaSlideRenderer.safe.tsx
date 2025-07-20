@@ -62,7 +62,7 @@ export const SafeSkiaSlideRenderer = forwardRef<SafeSkiaSlideRendererRef, SafeSk
           color: colors.muted,
           fontSize: 12,
           textAlign: 'center',
-          maxWidth: width * 0.8,
+          maxWidth: width * 0.6,
         }}>
           Enable Skia support to see pixel-perfect previews
         </Text>
