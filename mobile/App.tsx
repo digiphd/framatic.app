@@ -104,6 +104,8 @@ export default function App() {
             onMagicCreate={handleMagicCreate}
             onViewLibrary={handleViewLibrary}
             onViewSlideshows={handleViewSlideshows}
+            onVoiceCreate={handleMagicCreate} // Direct to voice creation
+            onPreviewSlideshow={handlePreview} // Open slideshow in preview
             // analysisProgress={75} // Uncomment to show analysis progress
           />
         );
